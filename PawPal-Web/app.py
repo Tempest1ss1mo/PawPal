@@ -646,8 +646,8 @@ def pets():
         logger.info(f"Adding new pet: {data.get('name')} for user {session['user_id']}")
 
         try:
-            # Ensure owner_id is a string
-            owner_id = str(session['user_id'])
+            # Ensure owner_id is an integer (as per API spec)
+            owner_id = int(session['user_id'])
 
             dog_data = {
                 'owner_id': owner_id,
@@ -658,11 +658,11 @@ def pets():
                 'temperament': data.get('temperament', 'Friendly'),
                 'energy_level': data.get('energy_level', 'medium'),
                 'is_friendly_with_other_dogs': True,
-                'is_friendly_with_children': True
+                'is_friendly_with_children': True,
+                'special_needs': data.get('special_needs', ''),
+                'medical_notes': data.get('medical_notes', ''),
+                'profile_image_url': data.get('profile_image_url', 'https://via.placeholder.com/150')
             }
-
-            if data.get('special_needs'):
-                dog_data['special_needs'] = data.get('special_needs')
 
             logger.info(f"Sending dog data to user service: {dog_data}")
 
