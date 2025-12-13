@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PawPal - Find Trusted Dog Walkers (Sprint 2)</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav>
+        <div class="container">
+            <div class="logo">🐾 PawPal <small style="font-size: 0.6em; color: #999;">(Sprint 2 - Composite Integration)</small></div>
+            <div class="nav-links">
+                <a href="#" onclick="showPage('home')">Home</a>
+                <a href="#" onclick="showPage('services')" class="nav-auth-required" style="display: none;">Services</a>
+                <a href="#" onclick="showPage('profile')" class="nav-auth-required" style="display: none;">My Profile</a>
+                <a href="#" onclick="showPage('bookings')" class="nav-auth-required" style="display: none;">Bookings</a>
+                <a href="#" onclick="showPage('demo')" style="color: #ff6b6b;">Sprint 2 Demo</a>
+                <button class="btn btn-outline nav-guest-only" onclick="showPage('login')">Login</button>
+                <button class="btn nav-guest-only" onclick="showPage('signup')">Sign Up</button>
+                <div class="nav-auth-required" style="display: none; align-items: center; gap: 10px;">
+                    <span id="navUserName" style="color: #333; font-weight: 500;"></span>
+                    <button class="btn btn-outline" onclick="logout()">Logout</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Home Page -->
+    <div id="home" class="page active">
+        <div class="container">
+            <div class="hero">
+                <h1>Find Trusted Pet Care Near You</h1>
+                <p>Connect with verified pet walkers and sitters in your neighborhood</p>
+                <p style="font-size: 0.9em; margin-top: 1rem; background: rgba(255,255,255,0.2); padding: 0.5rem; border-radius: 5px;">
+                    ✨ Sprint 2 Features: Composite Microservice Integration with Foreign Key Validation, Parallel Execution, and Cascade Operations
+                </p>
+                <button class="btn" style="font-size: 1.2rem; padding: 1rem 2rem;" onclick="showPage('services')">
+                    Get Started
+                </button>
+            </div>
+            
+            <div class="service-grid">
+                <div class="service-card">
+                    <div class="service-icon">🚶</div>
+                    <h3>Dog Walking</h3>
+                    <p>Professional dog walkers for daily exercise</p>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon">🏠</div>
+                    <h3>Pet Boarding</h3>
+                    <p>Safe and loving home environment</p>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon">📅</div>
+                    <h3>Day Care</h3>
+                    <p>Daytime care while you're at work</p>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon">✅</div>
+                    <h3>Drop-in Visits</h3>
+                    <p>Quick check-ins and feeding</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sprint 2 Demo Page -->
+    <div id="demo" class="page">
+        <div class="container">
+            <h2>Sprint 2 - Composite Microservice Demo</h2>
+            
+            <div class="tabs">
+                <button class="tab active" onclick="showTab(this, 'demo-overview')">Overview</button>
+                <button class="tab" onclick="showTab(this, 'demo-foreign-key')">Foreign Key Validation</button>
+                <button class="tab" onclick="showTab(this, 'demo-parallel')">Parallel Execution</button>
+                <button class="tab" onclick="showTab(this, 'demo-cascade')">Cascade Delete</button>
+                <button class="tab" onclick="showTab(this, 'demo-stats')">Aggregated Stats</button>
+            </div>
+
+            <div id="demo-overview" class="tab-content">
+                <div class="form-container">
+                    <h3>Composite Microservice Features</h3>
+                    <p>This demo showcases the Sprint 2 requirements implementation:</p>
+                    <ul style="list-style-type: disc; margin-left: 2rem; line-height: 1.8;">
+                        <li><strong>Composite Service</strong> (Port 3002) encapsulating atomic services</li>
+                        <li><strong>Foreign Key Validation</strong> - Dogs can only be created with valid owner IDs</li>
+                        <li><strong>Parallel Execution</strong> - Using worker threads for concurrent API calls</li>
+                        <li><strong>Cascade Delete</strong> - Deleting a user removes all their dogs</li>
+                        <li><strong>Aggregated Statistics</strong> - Combined data from multiple services</li>
+                    </ul>
+                    
+                    <div style="background: #f0f7ff; padding: 1rem; border-radius: 8px; margin-top: 1rem;">
+                        <strong>Service Status:</strong>
+                        <div id="serviceStatus" style="margin-top: 0.5rem;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="demo-foreign-key" class="tab-content" style="display: none;">
+                <div class="form-container">
+                    <h3>Foreign Key Validation Demo</h3>
+                    <p>Try creating a dog with an invalid owner ID to see foreign key validation in action.</p>
+                    
+                    <div class="form-group">
+                        <label>Owner ID</label>
+                        <input type="number" id="demoOwnerId" value="999" placeholder="Try an invalid ID like 999">
+                    </div>
+                    <div class="form-group">
+                        <label>Dog Name</label>
+                        <input type="text" id="demoDogName" value="Test Dog" placeholder="Enter dog name">
+                    </div>
+                    <button class="btn" onclick="testForeignKeyValidation()">Test Foreign Key Validation</button>
+                    
+                    <div id="foreignKeyResult" style="margin-top: 1rem; padding: 1rem; background: #f5f5f5; border-radius: 5px; display: none;"></div>
+                </div>
+            </div>
+
+            <div id="demo-parallel" class="tab-content" style="display: none;">
+                <div class="form-container">
+                    <h3>Parallel Execution Demo</h3>
+                    <p>Fetch user data and their dogs simultaneously using worker threads.</p>
+                    
+                    <div class="form-group">
+                        <label>User ID</label>
+                        <input type="number" id="parallelUserId" value="1" placeholder="Enter user ID">
+                    </div>
+                    <button class="btn" onclick="testParallelExecution()">Test Parallel Execution</button>
+                    
+                    <div id="parallelResult" style="margin-top: 1rem;">
+                        <div id="parallelTiming" style="padding: 1rem; background: #e8f5e9; border-radius: 5px; margin-bottom: 1rem; display: none;"></div>
+                        <div id="parallelData" style="padding: 1rem; background: #f5f5f5; border-radius: 5px; display: none;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="demo-cascade" class="tab-content" style="display: none;">
+                <div class="form-container">
+                    <h3>Cascade Delete Demo</h3>
+                    <p>Delete a user and automatically remove all their associated dogs.</p>
+                    
+                    <div class="form-group">
+                        <label>User ID to Delete</label>
+                        <input type="number" id="cascadeUserId" value="4" placeholder="Enter user ID">
+                    </div>
+                    <button class="btn" style="background: #ff6b6b;" onclick="testCascadeDelete()">Test Cascade Delete</button>
+                    
+                    <div id="cascadeResult" style="margin-top: 1rem; padding: 1rem; background: #f5f5f5; border-radius: 5px; display: none;"></div>
+                </div>
+            </div>
+
+            <div id="demo-stats" class="tab-content" style="display: none;">
+                <div class="form-container">
+                    <h3>Aggregated Statistics</h3>
+                    <p>View combined statistics from all microservices.</p>
+                    
+                    <button class="btn" onclick="loadAggregatedStats()">Load Statistics</button>
+                    
+                    <div id="compositeStats" style="margin-top: 1rem; padding: 1rem; background: #f5f5f5; border-radius: 5px; white-space: pre-wrap; font-family: monospace; display: none;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Login Page -->
+    <div id="login" class="page">
+        <div class="container">
+            <div class="form-container">
+                <h2>Login to Your Account</h2>
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label>Name <span style="color: red;">*</span></label>
+                        <input type="text" id="loginName" placeholder="Enter your name" required>
+                        <small style="color: #666;">Use the name from your registration</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Email <span style="color: red;">*</span></label>
+                        <input type="email" id="loginEmail" placeholder="Enter your email" required>
+                    </div>
+                    <p style="color: #666; margin: 15px 0; font-size: 0.9em; background: #f5f5f5; padding: 10px; border-radius: 5px;">
+                        ℹ️ Note: Password authentication is disabled. Login with your name and email only.
+                    </p>
+                    <button type="submit" class="btn" style="width: 100%;">Login</button>
+                </form>
+                <p style="text-align: center; margin-top: 1rem;">
+                    Don't have an account? <a href="#" onclick="showPage('signup')">Sign up</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sign Up Page -->
+    <div id="signup" class="page">
+        <div class="container">
+            <div class="form-container">
+                <h2>Create Your Account</h2>
+                <form id="signupForm">
+                    <div style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                        <h3 style="margin-top: 0; color: #333;">Account Information</h3>
+                        
+                        <div class="form-group">
+                            <label>Name <span style="color: red;">*</span></label>
+                            <input type="text" id="signupName" placeholder="Enter your full name" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Email <span style="color: red;">*</span></label>
+                            <input type="email" id="signupEmail" placeholder="your@email.com" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Account Type <span style="color: red;">*</span></label>
+                            <div class="radio-group">
+                                <div class="radio-option selected" onclick="selectAccountType(this, 'owner')">
+                                    <div>🏠</div>
+                                    <div>Pet Owner</div>
+                                </div>
+                                <div class="radio-option" onclick="selectAccountType(this, 'walker')">
+                                    <div>🚶</div>
+                                    <div>Pet Walker</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Phone <span style="color: red;">*</span></label>
+                            <input type="tel" id="signupPhone" placeholder="15551234567" pattern="^\+?[1-9]\d{0,15}$" required>
+                            <small style="color: #666; display: block; margin-top: 5px;">
+                                ⚠️ Format: Digits only, no dashes or spaces<br>
+                                ✅ Valid: 15551234567, +8613812345678<br>
+                                ❌ Invalid: 555-0100, (555) 123-4567
+                            </small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Location <span style="color: red;">*</span></label>
+                            <input type="text" id="signupLocation" placeholder="City, State" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Profile Image URL <span style="color: red;">*</span></label>
+                            <input type="url" id="signupProfileImage" placeholder="https://example.com/your-photo.jpg" required>
+                            <small style="color: #666;">Direct link to your profile photo</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Bio <span style="color: red;">*</span></label>
+                            <textarea id="signupBio" rows="3" placeholder="Tell us about yourself and your experience with pets..." style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;" required></textarea>
+                        </div>
+                    </div>
+                    
+                    <p style="color: #666; margin: 15px 0; font-size: 0.9em; background: #f5f5f5; padding: 10px; border-radius: 5px;">
+                        ℹ️ Note: All fields are required. You'll login with your name and email after registration.
+                    </p>
+                    
+                    <button type="submit" class="btn" style="width: 100%; margin-top: 10px;">Create Account</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Page -->
+    <div id="profile" class="page">
+        <div class="container">
+            <h2>My Profile</h2>
+            
+            <div class="tabs">
+                <button class="tab active" onclick="showTab(this, 'pets-tab')">My Pets</button>
+                <button class="tab" onclick="showTab(this, 'info-tab')">Personal Info</button>
+                <button class="tab" onclick="showTab(this, 'reviews-tab')">Reviews</button>
+            </div>
+
+            <!-- Pets Tab -->
+            <div id="pets-tab" class="tab-content">
+                <button class="btn" onclick="showModal('addPetModal')">+ Add Pet</button>
+                <div id="petsList" style="margin-top: 2rem;">
+                    <!-- Pets will be loaded here dynamically -->
+                </div>
+            </div>
+
+            <!-- Personal Info Tab -->
+            <div id="info-tab" class="tab-content" style="display: none;">
+                <div class="form-container">
+                    <p>Loading user information...</p>
+                </div>
+            </div>
+
+            <!-- Reviews Tab -->
+            <div id="reviews-tab" class="tab-content" style="display: none;">
+                <div id="reviewsList">
+                    <!-- Reviews will be loaded here dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Services/Booking Page -->
+    <div id="services" class="page">
+        <div class="container">
+            <h2>Book a Walking Service</h2>
+            
+            <div class="form-container">
+                <form id="bookingForm">
+                    <div class="form-group">
+                        <label>Schedule</label>
+                        <div class="schedule-options">
+                            <div class="schedule-option selected" onclick="selectSchedule(this, 'onetime')">
+                                <div>📅</div>
+                                <div>One Time</div>
+                            </div>
+                            <div class="schedule-option" onclick="selectSchedule(this, 'weekly')">
+                                <div>🔄</div>
+                                <div>Repeat Weekly</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Select Pets</label>
+                        <div class="radio-group" id="petsSelection">
+                            <!-- Pets will be loaded here dynamically -->
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Date</label>
+                        <input type="date" id="bookingDate" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Time</label>
+                        <div class="time-slots">
+                            <div class="time-slot">6am-8am</div>
+                            <div class="time-slot">8am-10am</div>
+                            <div class="time-slot">10am-12pm</div>
+                            <div class="time-slot">12pm-2pm</div>
+                            <div class="time-slot">2pm-4pm</div>
+                            <div class="time-slot selected">4pm-6pm</div>
+                            <div class="time-slot">6pm-8pm</div>
+                            <div class="time-slot">8pm-10pm</div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Address</label>
+                        <input type="text" id="bookingAddress" placeholder="Enter pickup address" required>
+                    </div>
+
+                    <button type="submit" class="btn" style="width: 100%;">Find Walkers</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Walkers List -->
+    <div id="walkers" class="page">
+        <div class="container">
+            <h2>Available Walkers</h2>
+            <p style="margin-bottom: 2rem;">Showing walkers near your area for <span id="bookingInfo"></span></p>
+            
+            <div class="walker-list" id="walkersList">
+                <!-- Walkers will be loaded here dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Bookings Page -->
+    <div id="bookings" class="page">
+        <div class="container">
+            <h2>My Bookings</h2>
+            
+            <div class="tabs">
+                <button class="tab active" onclick="showTab(this, 'upcoming-tab')">Upcoming</button>
+                <button class="tab" onclick="showTab(this, 'past-tab')">Past</button>
+            </div>
+
+            <div id="upcoming-tab" class="tab-content">
+                <div id="upcomingBookings">
+                    <!-- Upcoming bookings will be loaded here -->
+                </div>
+            </div>
+
+            <div id="past-tab" class="tab-content" style="display: none;">
+                <div id="pastBookings">
+                    <!-- Past bookings will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Pet Modal -->
+    <div id="addPetModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add Pet</h2>
+                <button class="close-btn" onclick="closeModal('addPetModal')">✕</button>
+            </div>
+            <form id="addPetForm">
+                <div class="form-group">
+                    <label>Pet Type</label>
+                    <div class="radio-group">
+                        <div class="radio-option selected" onclick="selectPetType(this, 'dog')">
+                            <div>🐕 Dog</div>
+                        </div>
+                        <div class="radio-option" onclick="selectPetType(this, 'cat')">
+                            <div>🐈 Cat</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" id="petName" placeholder="Pet's name" required>
+                </div>
+                <div class="form-group">
+                    <label>Breed</label>
+                    <input type="text" id="petBreed" placeholder="Pet's breed">
+                </div>
+                <div class="form-group">
+                    <label>Weight (lbs)</label>
+                    <input type="number" id="petWeight" placeholder="Weight in pounds">
+                </div>
+                <div class="form-group">
+                    <label>Age</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <input type="number" id="petAgeYears" placeholder="Years">
+                        <input type="number" id="petAgeMonths" placeholder="Months">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Sex</label>
+                    <div class="radio-group">
+                        <div class="radio-option selected" onclick="selectPetSex(this, 'male')">Male</div>
+                        <div class="radio-option" onclick="selectPetSex(this, 'female')">Female</div>
+                    </div>
+                </div>
+                <button type="submit" class="btn" style="width: 100%;">Add Pet</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Review Modal -->
+    <div id="reviewModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Leave a Review</h2>
+                <button class="close-btn" onclick="closeModal('reviewModal')">✕</button>
+            </div>
+            <form id="reviewForm">
+                <div class="form-group">
+                    <label>Rating</label>
+                    <div style="font-size: 2rem; cursor: pointer;" id="ratingStars">
+                        <span onclick="setRating(1)">⭐</span>
+                        <span onclick="setRating(2)">⭐</span>
+                        <span onclick="setRating(3)">⭐</span>
+                        <span onclick="setRating(4)">⭐</span>
+                        <span onclick="setRating(5)">⭐</span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Your Review</label>
+                    <textarea id="reviewText" placeholder="Tell others about your experience..." required></textarea>
+                </div>
+                <button type="submit" class="btn" style="width: 100%;">Submit Review</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/demo.js') }}"></script>
+</body>
+</html>
