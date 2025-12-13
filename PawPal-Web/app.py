@@ -885,7 +885,13 @@ def walks():
 
             # Owners see their own walks, walkers see all requested walks
             if user_role == 'owner':
-                params['owner_id'] = str(session['user_id'])
+                # Convert to UUID format for Walk Service
+                owner_uuid = f"00000000-0000-0000-0000-{str(session['user_id']).zfill(12)}"
+                params['owner_id'] = owner_uuid
+                # Also include status filter for owners
+                status_filter = request.args.get('status')
+                if status_filter:
+                    params['status'] = status_filter
             elif user_role == 'walker':
                 status_filter = request.args.get('status', 'requested')
                 if status_filter:
@@ -895,6 +901,8 @@ def walks():
             city = request.args.get('city')
             if city:
                 params['city'] = city
+
+            logger.info(f"Fetching walks with params: {params}")
 
             response = requests.get(
                 f'{WALK_SERVICE_URL}/walks',
