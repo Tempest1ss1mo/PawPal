@@ -1,10 +1,7 @@
 // PawPal Configuration
-// Update these values for your deployment
-
 const CONFIG = {
-    // Backend API URL - Update this to your Cloud Run URL after deployment
-    // Example: 'https://pawpal-backend-xxxxx-uc.a.run.app'
-    API_BASE_URL: 'http://localhost:5001',
+    // Backend API URL - Cloud Run
+    API_BASE_URL: 'https://pawpal-web-backend-354105250954.us-central1.run.app',
 
     // Google OAuth Client ID
     GOOGLE_CLIENT_ID: '445201823926-sqscktas1gm0k5ve91mchu5cj96bofcm.apps.googleusercontent.com'
