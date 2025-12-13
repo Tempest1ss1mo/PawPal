@@ -1,27 +1,116 @@
-let selectedAccountType = 'owner';
-let selectedPetType = 'dog';
-let selectedPetSex = 'male';
-let selectedSchedule = 'onetime';
-let selectedTime = '4pm-6pm';
-let selectedRating = 0;
-let currentUser = null;
-let selectedPets = [];
-let selectedWalkerId = null;
+// PawPal Web Application - Main JavaScript
 
-// API Base URL (will be set based on environment)
+// Global State
+let currentUser = null;
+let selectedAccountType = 'owner';
+let selectedGoogleAccountType = 'owner';
+let selectedRating = 0;
+let allWalks = [];
+
+// API Base URL
 const API_BASE_URL = window.location.origin + '/api';
 
-// Check login status on page load
+// ==================== INITIALIZATION ====================
+
 window.addEventListener('DOMContentLoaded', () => {
     checkLoginStatus();
+    initializeGoogleAuth();
+    setupFormHandlers();
+    setMinDateTime();
 });
 
-// Check if user is logged in
+// Initialize Google OAuth2
+function initializeGoogleAuth() {
+    if (typeof google !== 'undefined' && google.accounts) {
+        // Initialize Google Sign-In for login page
+        google.accounts.id.initialize({
+            client_id: GOOGLE_CLIENT_ID,
+            callback: handleGoogleCredentialResponse,
+            auto_select: false
+        });
+
+        // Render button for login page
+        const loginButton = document.getElementById('googleSignInButton');
+        if (loginButton) {
+            google.accounts.id.renderButton(loginButton, {
+                theme: 'outline',
+                size: 'large',
+                width: 300,
+                text: 'signin_with'
+            });
+        }
+
+        // Render button for signup page
+        const signupButton = document.getElementById('googleSignUpButton');
+        if (signupButton) {
+            google.accounts.id.renderButton(signupButton, {
+                theme: 'outline',
+                size: 'large',
+                width: 300,
+                text: 'signup_with'
+            });
+        }
+    } else {
+        console.log('Google Sign-In not available');
+    }
+}
+
+// Handle Google OAuth2 Response
+async function handleGoogleCredentialResponse(response) {
+    console.log('Google credential received');
+
+    try {
+        const result = await fetch('/api/auth/google', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                credential: response.credential
+            })
+        });
+
+        const data = await result.json();
+
+        if (data.success) {
+            if (data.isNewUser) {
+                // New user - show registration completion form
+                document.getElementById('googleEmail').value = data.googleUser.email;
+                document.getElementById('googleName').value = data.googleUser.name;
+                showPage('google-complete');
+            } else {
+                // Existing user - log them in
+                currentUser = data.user;
+                updateUIForLoggedInUser();
+                alert('Welcome back, ' + currentUser.name + '!');
+                showPage('home');
+            }
+        } else {
+            alert('Google login failed: ' + data.message);
+        }
+    } catch (error) {
+        console.error('Google auth error:', error);
+        alert('Failed to authenticate with Google');
+    }
+}
+
+// Set minimum date/time for walk scheduling
+function setMinDateTime() {
+    const walkDateTime = document.getElementById('walkDateTime');
+    if (walkDateTime) {
+        const now = new Date();
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        walkDateTime.min = now.toISOString().slice(0, 16);
+    }
+}
+
+// ==================== AUTHENTICATION ====================
+
 async function checkLoginStatus() {
     try {
         const response = await fetch('/api/current-user');
         const data = await response.json();
-        
+
         if (data.success) {
             currentUser = data.user;
             updateUIForLoggedInUser();
@@ -34,47 +123,66 @@ async function checkLoginStatus() {
     }
 }
 
-// Update UI for logged in user
 function updateUIForLoggedInUser() {
-    // Hide guest-only elements (login/signup buttons)
+    // Hide guest-only elements
     document.querySelectorAll('.nav-guest-only').forEach(el => {
         el.style.display = 'none';
     });
-    
+
     // Show auth-required elements
     document.querySelectorAll('.nav-auth-required').forEach(el => {
         el.style.display = 'flex';
     });
-    
-    // Update user name in navigation
+
+    // Show role-specific navigation
+    if (currentUser.role === 'owner') {
+        document.querySelectorAll('.nav-owner').forEach(el => {
+            el.style.display = 'inline-block';
+        });
+        document.querySelectorAll('.nav-walker').forEach(el => {
+            el.style.display = 'none';
+        });
+    } else if (currentUser.role === 'walker') {
+        document.querySelectorAll('.nav-walker').forEach(el => {
+            el.style.display = 'inline-block';
+        });
+        document.querySelectorAll('.nav-owner').forEach(el => {
+            el.style.display = 'none';
+        });
+    }
+
+    // Update user info in nav
     const navUserName = document.getElementById('navUserName');
     if (navUserName && currentUser) {
         navUserName.textContent = `Welcome, ${currentUser.name}`;
     }
-    
-    // Show home page if on login/signup page
+
+    const navUserRole = document.getElementById('navUserRole');
+    if (navUserRole && currentUser) {
+        navUserRole.textContent = `(${currentUser.role})`;
+    }
+
+    // If on login/signup page, redirect to home
     const activePage = document.querySelector('.page.active');
     if (activePage && (activePage.id === 'login' || activePage.id === 'signup')) {
         showPage('home');
     }
 }
 
-// Update UI for guest user
 function updateUIForGuestUser() {
     // Show guest-only elements
     document.querySelectorAll('.nav-guest-only').forEach(el => {
         el.style.display = 'inline-block';
     });
-    
+
     // Hide auth-required elements
     document.querySelectorAll('.nav-auth-required').forEach(el => {
         el.style.display = 'none';
     });
-    
+
     currentUser = null;
 }
 
-// Logout function
 async function logout() {
     try {
         const response = await fetch('/api/logout', {
@@ -83,9 +191,9 @@ async function logout() {
                 'Content-Type': 'application/json',
             }
         });
-        
+
         const data = await response.json();
-        
+
         if (data.success) {
             currentUser = null;
             updateUIForGuestUser();
@@ -98,7 +206,8 @@ async function logout() {
     }
 }
 
-// Page Navigation
+// ==================== PAGE NAVIGATION ====================
+
 function showPage(pageId) {
     const pages = document.querySelectorAll('.page');
     pages.forEach(page => page.classList.remove('active'));
@@ -106,26 +215,35 @@ function showPage(pageId) {
     if (targetPage) {
         targetPage.classList.add('active');
     }
-    
+
     // Load page-specific data
-    if (pageId === 'profile') {
-        loadPets();
-        loadUserProfile();
-    } else if (pageId === 'bookings') {
-        loadBookings();
-    } else if (pageId === 'services') {
-        loadPetsForBooking();
-    } else if (pageId === 'demo') {
-        loadDemoData();
+    switch (pageId) {
+        case 'profile':
+            loadPets();
+            loadUserProfile();
+            break;
+        case 'walks':
+            loadPetsForWalkModal();
+            loadMyWalks('requested');
+            break;
+        case 'available-walks':
+            loadAvailableWalks();
+            break;
+        case 'my-jobs':
+            loadMyJobs('pending');
+            break;
+        case 'login':
+        case 'signup':
+            initializeGoogleAuth();
+            break;
     }
 }
 
-// Tab Navigation
 function showTab(tabElement, tabId) {
     const tabs = tabElement.parentElement.querySelectorAll('.tab');
     tabs.forEach(tab => tab.classList.remove('active'));
     tabElement.classList.add('active');
-    
+
     const contents = tabElement.parentElement.parentElement.querySelectorAll('.tab-content');
     contents.forEach(content => content.style.display = 'none');
     const targetContent = document.getElementById(tabId);
@@ -134,11 +252,17 @@ function showTab(tabElement, tabId) {
     }
 }
 
-// Modal Functions
+// ==================== MODAL FUNCTIONS ====================
+
 function showModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
         modal.classList.add('active');
+
+        // Load pets for walk modal
+        if (modalId === 'createWalkModal') {
+            loadPetsForWalkModal();
+        }
     }
 }
 
@@ -149,29 +273,18 @@ function closeModal(modalId) {
     }
 }
 
-// Selection Functions
+// ==================== SELECTION FUNCTIONS ====================
+
 function selectAccountType(element, type) {
-    document.querySelectorAll('#signup .radio-option').forEach(opt => opt.classList.remove('selected'));
+    document.querySelectorAll('#signupForm .radio-option').forEach(opt => opt.classList.remove('selected'));
     element.classList.add('selected');
     selectedAccountType = type;
 }
 
-function selectSchedule(element, type) {
-    element.parentElement.querySelectorAll('.schedule-option').forEach(opt => opt.classList.remove('selected'));
+function selectGoogleAccountType(element, type) {
+    document.querySelectorAll('#googleCompleteForm .radio-option').forEach(opt => opt.classList.remove('selected'));
     element.classList.add('selected');
-    selectedSchedule = type;
-}
-
-function selectPetType(element, type) {
-    element.parentElement.querySelectorAll('.radio-option').forEach(opt => opt.classList.remove('selected'));
-    element.classList.add('selected');
-    selectedPetType = type;
-}
-
-function selectPetSex(element, sex) {
-    element.parentElement.querySelectorAll('.radio-option').forEach(opt => opt.classList.remove('selected'));
-    element.classList.add('selected');
-    selectedPetSex = sex;
+    selectedGoogleAccountType = type;
 }
 
 function setRating(stars) {
@@ -180,110 +293,85 @@ function setRating(stars) {
     if (ratingStars) {
         const spans = ratingStars.querySelectorAll('span');
         spans.forEach((span, index) => {
-            span.style.opacity = index < stars ? '1' : '0.3';
+            span.innerHTML = index < stars ? '&#9733;' : '&#9734;';
+            span.style.color = index < stars ? '#ffd700' : '#ccc';
         });
     }
 }
 
-// API Functions
-async function apiCall(endpoint, method = 'GET', data = null) {
-    const options = {
-        method: method,
-        headers: {
-            'Content-Type': 'application/json'
-        }
-    };
-    
-    if (data && method !== 'GET') {
-        options.body = JSON.stringify(data);
-    }
-    
-    try {
-        const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
-        const result = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(result.message || 'API call failed');
-        }
-        
-        return result;
-    } catch (error) {
-        console.error('API Error:', error);
-        throw error;
-    }
+// ==================== FORM HANDLERS ====================
+
+function setupFormHandlers() {
+    // Login Form
+    document.getElementById('loginForm')?.addEventListener('submit', handleLogin);
+
+    // Signup Form
+    document.getElementById('signupForm')?.addEventListener('submit', handleSignup);
+
+    // Google Complete Registration Form
+    document.getElementById('googleCompleteForm')?.addEventListener('submit', handleGoogleComplete);
+
+    // Add Pet Form
+    document.getElementById('addPetForm')?.addEventListener('submit', handleAddPet);
+
+    // Create Walk Form
+    document.getElementById('createWalkForm')?.addEventListener('submit', handleCreateWalk);
+
+    // Review Form
+    document.getElementById('reviewForm')?.addEventListener('submit', handleReview);
 }
 
-// Login Form Handler
-document.getElementById('loginForm')?.addEventListener('submit', async (e) => {
+async function handleLogin(e) {
     e.preventDefault();
-    
+
     const name = document.getElementById('loginName').value.trim();
     const email = document.getElementById('loginEmail').value.trim().toLowerCase();
-    
+
     try {
         const response = await fetch('/api/login', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ 
-                name: name,
-                email: email,
-                password: 'demo' // Dummy password for compatibility
-            })
+            body: JSON.stringify({ name, email })
         });
-        
+
         const result = await response.json();
-        
-        if (response.status === 200 && result.success) {
-            console.log('Login successful:', result);
+
+        if (result.success) {
             currentUser = result.user;
             updateUIForLoggedInUser();
-            alert('✅ Welcome back, ' + currentUser.name + '!');
+            alert('Welcome back, ' + currentUser.name + '!');
             showPage('home');
         } else {
-            alert('❌ Login failed!\n\n' + (result.message || 'Please check your name and email.'));
+            alert('Login failed: ' + result.message);
         }
     } catch (error) {
         console.error('Login error:', error);
-        alert('❌ Login failed!\n\nNetwork error: ' + error.message);
+        alert('Login failed. Please try again.');
     }
-});
+}
 
-// Signup Form Handler
-document.getElementById('signupForm')?.addEventListener('submit', async (e) => {
+async function handleSignup(e) {
     e.preventDefault();
-    
-    // All fields are required now
+
     const data = {
         name: document.getElementById('signupName').value.trim(),
         email: document.getElementById('signupEmail').value.trim().toLowerCase(),
-        accountType: selectedAccountType || 'owner',
+        accountType: selectedAccountType,
         phone: document.getElementById('signupPhone').value.trim(),
         location: document.getElementById('signupLocation').value.trim(),
         profile_image_url: document.getElementById('signupProfileImage').value.trim(),
         bio: document.getElementById('signupBio').value.trim()
     };
-    
-    // Validate all required fields
-    if (!data.name || !data.email || !data.phone || !data.location || !data.profile_image_url || !data.bio) {
-        alert('All fields are required. Please fill in all information.');
-        return;
-    }
-    
-    // Validate phone format
+
+    // Validate phone
     const phoneRegex = /^\+?[1-9]\d{0,15}$/;
     if (!phoneRegex.test(data.phone)) {
-        alert('Invalid phone format!\n\n' +
-              '✅ Valid formats:\n' +
-              '  • 15551234567 (digits only)\n' +
-              '  • +8613812345678 (with country code)\n\n' +
-              '❌ Invalid formats:\n' +
-              '  • 555-0100 (no dashes)\n' +
-              '  • (555) 123-4567 (no parentheses or spaces)');
+        alert('Invalid phone format. Use digits only (e.g., 15551234567)');
         return;
     }
-    
+
     try {
         const response = await fetch('/api/signup', {
             method: 'POST',
@@ -292,345 +380,586 @@ document.getElementById('signupForm')?.addEventListener('submit', async (e) => {
             },
             body: JSON.stringify(data)
         });
-        
+
         const result = await response.json();
-        
-        // Check response status code
-        if (response.status === 201 || response.status === 200) {
-            // Success
-            console.log('Signup successful:', result);
-            alert('✅ Account created successfully!\n\nYou can now login with:\n' +
-                  'Name: ' + data.name + '\n' +
-                  'Email: ' + data.email);
+
+        if (response.status === 201 || result.success) {
+            alert('Account created successfully! You can now login.');
             showPage('login');
-        } else if (response.status === 409) {
-            // Email already exists
-            alert('❌ Registration failed!\n\nEmail already exists. Please use a different email or login.');
-        } else if (response.status === 400) {
-            // Validation error
-            alert('❌ Registration failed!\n\n' + (result.message || 'Invalid input data. Please check all fields.'));
         } else {
-            // Other errors
-            alert('❌ Registration failed!\n\n' + (result.message || 'Server error. Please try again.'));
+            alert('Signup failed: ' + result.message);
         }
     } catch (error) {
         console.error('Signup error:', error);
-        alert('❌ Registration failed!\n\nNetwork error: ' + error.message);
+        alert('Signup failed. Please try again.');
     }
-});
+}
 
-// Add Pet Form Handler
-document.getElementById('addPetForm')?.addEventListener('submit', async (e) => {
+async function handleGoogleComplete(e) {
     e.preventDefault();
-    
+
     const data = {
-        type: selectedPetType,
-        name: document.getElementById('petName').value,
-        breed: document.getElementById('petBreed').value,
-        weight: document.getElementById('petWeight').value,
-        ageYears: document.getElementById('petAgeYears').value,
-        ageMonths: document.getElementById('petAgeMonths').value,
-        sex: selectedPetSex,
-        size: document.getElementById('petWeight').value < 25 ? 'small' : 
-               document.getElementById('petWeight').value < 60 ? 'medium' : 'large'
+        role: selectedGoogleAccountType,
+        phone: document.getElementById('googlePhone').value.trim(),
+        location: document.getElementById('googleLocation').value.trim(),
+        bio: document.getElementById('googleBio').value.trim()
     };
-    
-    try {
-        const result = await apiCall('/pets', 'POST', data);
-        console.log('Pet added:', result);
-        alert('Pet added successfully!');
-        closeModal('addPetModal');
-        loadPets();
-    } catch (error) {
-        alert('Failed to add pet: ' + error.message);
-    }
-});
 
-// Booking Form Handler
-document.getElementById('bookingForm')?.addEventListener('submit', async (e) => {
+    try {
+        const response = await fetch('/api/auth/google/complete-registration', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            currentUser = result.user;
+            updateUIForLoggedInUser();
+            alert('Registration complete! Welcome to PawPal, ' + currentUser.name + '!');
+            showPage('home');
+        } else {
+            alert('Registration failed: ' + result.message);
+        }
+    } catch (error) {
+        console.error('Registration error:', error);
+        alert('Registration failed. Please try again.');
+    }
+}
+
+async function handleAddPet(e) {
     e.preventDefault();
-    
-    const date = document.getElementById('bookingDate').value;
-    const address = document.getElementById('bookingAddress').value;
-    
-    if (selectedPets.length === 0) {
-        alert('Please select at least one pet');
+
+    const data = {
+        name: document.getElementById('petName').value.trim(),
+        breed: document.getElementById('petBreed').value.trim() || 'Mixed',
+        size: document.getElementById('petSize').value,
+        ageYears: document.getElementById('petAgeYears').value || 0,
+        energy_level: document.getElementById('petEnergyLevel').value,
+        temperament: document.getElementById('petTemperament').value.trim() || 'Friendly'
+    };
+
+    try {
+        const response = await fetch('/api/pets', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert('Pet added successfully!');
+            closeModal('addPetModal');
+            loadPets();
+            // Clear form
+            document.getElementById('addPetForm').reset();
+        } else {
+            alert('Failed to add pet: ' + result.message);
+        }
+    } catch (error) {
+        console.error('Add pet error:', error);
+        alert('Failed to add pet. Please try again.');
+    }
+}
+
+async function handleCreateWalk(e) {
+    e.preventDefault();
+
+    const dateTimeValue = document.getElementById('walkDateTime').value;
+    const scheduledTime = new Date(dateTimeValue).toISOString();
+
+    const data = {
+        pet_id: document.getElementById('walkPetSelect').value,
+        location: document.getElementById('walkLocation').value.trim(),
+        city: document.getElementById('walkCity').value.trim(),
+        scheduled_time: scheduledTime,
+        duration_minutes: parseInt(document.getElementById('walkDuration').value)
+    };
+
+    if (!data.pet_id) {
+        alert('Please select a pet');
         return;
     }
-    
-    // Store booking info for the next page
-    sessionStorage.setItem('bookingInfo', JSON.stringify({
-        schedule: selectedSchedule,
-        pets: selectedPets,
-        date: date,
-        time: selectedTime,
-        address: address
-    }));
-    
-    // Load walkers
-    await loadWalkers(date, selectedTime);
-    showPage('walkers');
-});
 
-// Review Form Handler
-document.getElementById('reviewForm')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const data = {
-        rating: selectedRating,
-        review: document.getElementById('reviewText').value,
-        walkerId: selectedWalkerId
-    };
-    
     try {
-        const result = await apiCall('/reviews', 'POST', data);
-        console.log('Review submitted:', result);
-        alert('Review submitted successfully!');
-        closeModal('reviewModal');
-        loadBookings();
-    } catch (error) {
-        alert('Failed to submit review: ' + error.message);
-    }
-});
+        const response = await fetch('/api/walks', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        });
 
-// Load Pets
+        const result = await response.json();
+
+        if (result.success) {
+            alert('Walk request created successfully!');
+            closeModal('createWalkModal');
+            loadMyWalks('requested');
+            // Clear form
+            document.getElementById('createWalkForm').reset();
+        } else {
+            alert('Failed to create walk request: ' + result.message);
+        }
+    } catch (error) {
+        console.error('Create walk error:', error);
+        alert('Failed to create walk request. Please try again.');
+    }
+}
+
+async function handleReview(e) {
+    e.preventDefault();
+
+    const data = {
+        walk_id: document.getElementById('reviewWalkId').value,
+        walker_id: document.getElementById('reviewWalkerId').value,
+        rating: selectedRating,
+        comment: document.getElementById('reviewText').value.trim()
+    };
+
+    if (selectedRating === 0) {
+        alert('Please select a rating');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/reviews', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert('Review submitted successfully!');
+            closeModal('reviewModal');
+            // Reset form
+            document.getElementById('reviewForm').reset();
+            selectedRating = 0;
+            setRating(0);
+        } else {
+            alert('Failed to submit review: ' + result.message);
+        }
+    } catch (error) {
+        console.error('Review error:', error);
+        alert('Failed to submit review. Please try again.');
+    }
+}
+
+// ==================== PET MANAGEMENT ====================
+
 async function loadPets() {
     try {
-        const result = await apiCall('/pets');
+        const response = await fetch('/api/pets');
+        const result = await response.json();
+
         const petsList = document.getElementById('petsList');
-        
         if (petsList) {
-            petsList.innerHTML = result.pets.map(pet => `
-                <div class="pet-card">
-                    <div class="pet-header">
-                        <div class="pet-avatar">${pet.type === 'dog' ? '🐕' : '🐈'}</div>
-                        <div class="pet-details">
-                            <h3>${pet.name}</h3>
-                            <div class="pet-info">
-                                <span>${pet.type === 'dog' ? 'Dog' : 'Cat'}</span>
-                                <span>•</span>
-                                <span>${pet.breed || 'Mixed breed'}</span>
+            if (result.pets && result.pets.length > 0) {
+                petsList.innerHTML = result.pets.map(pet => `
+                    <div class="pet-card">
+                        <div class="pet-header">
+                            <div class="pet-avatar">🐕</div>
+                            <div class="pet-details">
+                                <h3>${pet.name}</h3>
+                                <div class="pet-info">
+                                    <span>${pet.breed || 'Mixed breed'}</span>
+                                    <span>•</span>
+                                    <span>${pet.age} years old</span>
+                                    <span>•</span>
+                                    <span>${pet.size}</span>
+                                </div>
                             </div>
                         </div>
+                        <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #eee;">
+                            <p><strong>Energy:</strong> ${pet.energy_level || 'Medium'}</p>
+                            <p><strong>Temperament:</strong> ${pet.temperament || 'Friendly'}</p>
+                        </div>
                     </div>
-                </div>
-            `).join('');
+                `).join('');
+            } else {
+                petsList.innerHTML = '<p style="color: #666; text-align: center;">No pets added yet. Click "Add Pet" to add your first pet!</p>';
+            }
         }
     } catch (error) {
         console.error('Failed to load pets:', error);
     }
 }
 
-// Load User Profile
-async function loadUserProfile() {
+async function loadPetsForWalkModal() {
     try {
-        // If we have a current user, show their info
-        if (currentUser) {
-            const infoTab = document.getElementById('info-tab');
-            if (infoTab) {
-                infoTab.innerHTML = `
-                    <div class="form-container">
-                        <div class="form-group">
-                            <label>Full Name</label>
-                            <input type="text" value="${currentUser.name || 'User'}" readonly>
+        const response = await fetch('/api/pets');
+        const result = await response.json();
+
+        const petSelect = document.getElementById('walkPetSelect');
+        if (petSelect && result.pets) {
+            petSelect.innerHTML = '<option value="">-- Select a pet --</option>';
+            result.pets.forEach(pet => {
+                petSelect.innerHTML += `<option value="${pet.id}">${pet.name} (${pet.breed})</option>`;
+            });
+        }
+    } catch (error) {
+        console.error('Failed to load pets for modal:', error);
+    }
+}
+
+// ==================== USER PROFILE ====================
+
+async function loadUserProfile() {
+    if (!currentUser) return;
+
+    const container = document.getElementById('profileInfoContainer');
+    if (container) {
+        container.innerHTML = `
+            <div class="form-group">
+                <label>Name</label>
+                <input type="text" value="${currentUser.name || ''}" readonly>
+            </div>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" value="${currentUser.email || ''}" readonly>
+            </div>
+            <div class="form-group">
+                <label>Role</label>
+                <input type="text" value="${currentUser.role || 'owner'}" readonly style="text-transform: capitalize;">
+            </div>
+        `;
+    }
+}
+
+// ==================== WALK MANAGEMENT (OWNER) ====================
+
+async function loadMyWalks(status) {
+    try {
+        const response = await fetch(`/api/walks?status=${status}`);
+        const result = await response.json();
+
+        let listId;
+        switch (status) {
+            case 'requested':
+                listId = 'myWalksList';
+                break;
+            case 'accepted':
+                listId = 'acceptedWalksList';
+                break;
+            case 'completed':
+                listId = 'completedWalksList';
+                break;
+            default:
+                listId = 'myWalksList';
+        }
+
+        const listElement = document.getElementById(listId);
+        if (listElement && result.walks) {
+            if (result.walks.length > 0) {
+                listElement.innerHTML = result.walks.map(walk => {
+                    const scheduledDate = new Date(walk.scheduled_time);
+                    const dateStr = scheduledDate.toLocaleDateString();
+                    const timeStr = scheduledDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                    let actionButtons = '';
+                    if (status === 'completed') {
+                        actionButtons = `<button class="btn btn-outline" onclick="openReviewModal('${walk.id}', '${walk.walker_id || ''}')">Leave Review</button>`;
+                    } else if (status === 'requested') {
+                        actionButtons = `<button class="btn btn-outline" style="background: #ff6b6b; color: white; border: none;" onclick="cancelWalk('${walk.id}')">Cancel</button>`;
+                    }
+
+                    return `
+                        <div class="pet-card">
+                            <h3>Walk Request</h3>
+                            <p><strong>Location:</strong> ${walk.location}</p>
+                            <p><strong>City:</strong> ${walk.city}</p>
+                            <p><strong>Date:</strong> ${dateStr} at ${timeStr}</p>
+                            <p><strong>Duration:</strong> ${walk.duration_minutes} minutes</p>
+                            <p><strong>Status:</strong> <span style="text-transform: capitalize; color: ${getStatusColor(walk.status)}">${walk.status}</span></p>
+                            ${actionButtons}
                         </div>
-                        <div class="form-group">
-                            <label>Email</label>
-                            <input type="email" value="${currentUser.email || 'user@example.com'}" readonly>
+                    `;
+                }).join('');
+            } else {
+                listElement.innerHTML = `<p style="color: #666; text-align: center;">No ${status} walks found.</p>`;
+            }
+        }
+    } catch (error) {
+        console.error('Failed to load walks:', error);
+    }
+}
+
+async function cancelWalk(walkId) {
+    if (!confirm('Are you sure you want to cancel this walk request?')) return;
+
+    try {
+        const response = await fetch(`/api/walks/${walkId}`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ status: 'cancelled' })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert('Walk request cancelled.');
+            loadMyWalks('requested');
+        } else {
+            alert('Failed to cancel walk: ' + result.message);
+        }
+    } catch (error) {
+        console.error('Cancel walk error:', error);
+        alert('Failed to cancel walk. Please try again.');
+    }
+}
+
+// ==================== WALK MANAGEMENT (WALKER) ====================
+
+async function loadAvailableWalks(city = '') {
+    try {
+        let url = '/api/walks?status=requested';
+        if (city) {
+            url += `&city=${encodeURIComponent(city)}`;
+        }
+
+        const response = await fetch(url);
+        const result = await response.json();
+
+        allWalks = result.walks || [];
+        displayAvailableWalks(allWalks);
+    } catch (error) {
+        console.error('Failed to load available walks:', error);
+    }
+}
+
+function displayAvailableWalks(walks) {
+    const listElement = document.getElementById('availableWalksList');
+    if (listElement) {
+        if (walks.length > 0) {
+            listElement.innerHTML = walks.map(walk => {
+                const scheduledDate = new Date(walk.scheduled_time);
+                const dateStr = scheduledDate.toLocaleDateString();
+                const timeStr = scheduledDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                return `
+                    <div class="walker-card" style="cursor: default;">
+                        <div class="walker-avatar">🚶</div>
+                        <div class="walker-info">
+                            <h3>Walk in ${walk.city}</h3>
+                            <p><strong>Location:</strong> ${walk.location}</p>
+                            <p><strong>Date:</strong> ${dateStr} at ${timeStr}</p>
+                            <p><strong>Duration:</strong> ${walk.duration_minutes} minutes</p>
                         </div>
-                        <div class="form-group">
-                            <label>Role</label>
-                            <input type="text" value="${currentUser.role || 'owner'}" readonly>
-                        </div>
-                        <div class="form-group">
-                            <label>Location</label>
-                            <input type="text" value="${currentUser.location || 'Not set'}" readonly>
+                        <div style="text-align: right;">
+                            <button class="btn" onclick="acceptWalk('${walk.id}')">Accept Walk</button>
                         </div>
                     </div>
                 `;
-            }
+            }).join('');
+        } else {
+            listElement.innerHTML = '<p style="color: #666; text-align: center;">No available walk requests at the moment.</p>';
+        }
+    }
+}
+
+function filterWalksByCity() {
+    const cityFilter = document.getElementById('walkCityFilter').value.toLowerCase();
+    const filteredWalks = allWalks.filter(walk =>
+        walk.city.toLowerCase().includes(cityFilter)
+    );
+    displayAvailableWalks(filteredWalks);
+}
+
+async function acceptWalk(walkId) {
+    if (!confirm('Are you sure you want to accept this walk request?')) return;
+
+    try {
+        const response = await fetch('/api/assignments', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                walk_id: walkId,
+                notes: ''
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert('Walk accepted successfully! Check "My Jobs" for details.');
+            loadAvailableWalks();
+        } else {
+            alert('Failed to accept walk: ' + result.message);
         }
     } catch (error) {
-        console.error('Failed to load user profile:', error);
+        console.error('Accept walk error:', error);
+        alert('Failed to accept walk. Please try again.');
     }
 }
 
-// Load Pets for Booking
-async function loadPetsForBooking() {
+async function loadMyJobs(status) {
     try {
-        const result = await apiCall('/pets');
-        const petsSelection = document.getElementById('petsSelection');
-        
-        if (petsSelection) {
-            petsSelection.innerHTML = result.pets.map(pet => `
-                <div class="radio-option" onclick="togglePetSelection(this, ${pet.id})">
-                    <div>${pet.type === 'dog' ? '🐕' : '🐈'} ${pet.name}</div>
-                </div>
-            `).join('');
-        }
-    } catch (error) {
-        console.error('Failed to load pets:', error);
-    }
-}
+        const response = await fetch(`/api/assignments?status=${status}`);
+        const result = await response.json();
 
-// Toggle Pet Selection
-function togglePetSelection(element, petId) {
-    element.classList.toggle('selected');
-    
-    if (element.classList.contains('selected')) {
-        if (!selectedPets.includes(petId)) {
-            selectedPets.push(petId);
+        let listId;
+        switch (status) {
+            case 'pending':
+                listId = 'pendingJobsList';
+                break;
+            case 'in_progress':
+                listId = 'inprogressJobsList';
+                break;
+            case 'completed':
+                listId = 'completedJobsList';
+                break;
+            default:
+                listId = 'pendingJobsList';
         }
-    } else {
-        selectedPets = selectedPets.filter(id => id !== petId);
-    }
-}
 
-// Load Walkers
-async function loadWalkers(date, time) {
-    try {
-        const result = await apiCall(`/walkers?date=${date}&time=${time}`);
-        const walkersList = document.getElementById('walkersList');
-        const bookingInfo = document.getElementById('bookingInfo');
-        
-        if (bookingInfo) {
-            bookingInfo.textContent = `${date}, ${time}`;
-        }
-        
-        if (walkersList) {
-            walkersList.innerHTML = result.walkers.map(walker => `
-                <div class="walker-card" onclick="selectWalker(${walker.id})">
-                    <div class="walker-avatar">👤</div>
-                    <div class="walker-info">
-                        <h3>${walker.name}</h3>
-                        <div class="rating">
-                            <span class="stars">⭐ ${walker.rating}</span>
-                            <span>• ${walker.reviews} reviews</span>
+        const listElement = document.getElementById(listId);
+        if (listElement && result.assignments) {
+            if (result.assignments.length > 0) {
+                listElement.innerHTML = result.assignments.map(assignment => {
+                    let actionButtons = '';
+                    if (status === 'pending') {
+                        actionButtons = `<button class="btn" onclick="startWalk('${assignment.id}')">Start Walk</button>`;
+                    } else if (status === 'in_progress') {
+                        actionButtons = `<button class="btn" onclick="completeWalk('${assignment.id}')">Complete Walk</button>`;
+                    }
+
+                    const createdDate = new Date(assignment.created_at);
+
+                    return `
+                        <div class="pet-card">
+                            <h3>Walk Assignment</h3>
+                            <p><strong>Walk ID:</strong> ${assignment.walk_id}</p>
+                            <p><strong>Status:</strong> <span style="text-transform: capitalize; color: ${getStatusColor(assignment.status)}">${assignment.status.replace('_', ' ')}</span></p>
+                            <p><strong>Assigned:</strong> ${createdDate.toLocaleDateString()}</p>
+                            ${assignment.notes ? `<p><strong>Notes:</strong> ${assignment.notes}</p>` : ''}
+                            ${actionButtons}
                         </div>
-                    </div>
-                    <div class="walker-price">
-                        <small>from</small><br>
-                        $${walker.price}<br>
-                        <small>per walk</small>
-                    </div>
-                </div>
-            `).join('');
-        }
-    } catch (error) {
-        console.error('Failed to load walkers:', error);
-        alert('Failed to load walkers');
-    }
-}
-
-// Select Walker
-async function selectWalker(walkerId) {
-    selectedWalkerId = walkerId;
-    const bookingInfo = JSON.parse(sessionStorage.getItem('bookingInfo') || '{}');
-    
-    const data = {
-        ...bookingInfo,
-        walkerId: walkerId
-    };
-    
-    try {
-        const result = await apiCall('/bookings', 'POST', data);
-        console.log('Booking created:', result);
-        alert('Booking created successfully!');
-        showPage('bookings');
-    } catch (error) {
-        alert('Failed to create booking: ' + error.message);
-    }
-}
-
-// Load Bookings
-async function loadBookings() {
-    try {
-        const result = await apiCall('/bookings');
-        
-        const upcomingBookings = document.getElementById('upcomingBookings');
-        const pastBookings = document.getElementById('pastBookings');
-        
-        if (upcomingBookings) {
-            upcomingBookings.innerHTML = `
-                <div class="pet-card">
-                    <h3>Dog Walking - Oct 20, 2025</h3>
-                    <p>Walker: Elizabeth M.</p>
-                    <p>Time: 4pm-6pm</p>
-                    <p>Pet: Max</p>
-                    <p>Status: Confirmed</p>
-                </div>
-            `;
-        }
-        
-        if (pastBookings) {
-            pastBookings.innerHTML = `
-                <div class="pet-card">
-                    <h3>Dog Walking - Oct 15, 2025</h3>
-                    <p>Walker: Ana P.</p>
-                    <p>Time: 2pm-4pm</p>
-                    <p>Pet: Max</p>
-                    <button class="btn" onclick="showModal('reviewModal')">Leave Review</button>
-                </div>
-            `;
-        }
-    } catch (error) {
-        console.error('Failed to load bookings:', error);
-    }
-}
-
-// Load Demo Data for Sprint 2
-async function loadDemoData() {
-    try {
-        // Load composite service stats
-        const statsResult = await apiCall('/demo/composite-stats');
-        const statsDiv = document.getElementById('compositeStats');
-        if (statsDiv) {
-            statsDiv.innerHTML = `
-                <h3>Composite Service Statistics</h3>
-                <pre>${JSON.stringify(statsResult, null, 2)}</pre>
-            `;
-        }
-    } catch (error) {
-        console.error('Failed to load demo data:', error);
-    }
-}
-
-// Time slot selection
-document.addEventListener('click', function(e) {
-    if (e.target.classList.contains('time-slot')) {
-        e.target.parentElement.querySelectorAll('.time-slot').forEach(slot => slot.classList.remove('selected'));
-        e.target.classList.add('selected');
-        selectedTime = e.target.textContent;
-    }
-});
-
-// Initialize
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('PawPal Web Application Initialized');
-    console.log('Sprint 2 - Composite Microservice Integration');
-    console.log('Features:');
-    console.log('- Foreign key validation via Composite Service');
-    console.log('- Parallel execution for user/dogs fetching');
-    console.log('- Cascade delete operations');
-    console.log('- Aggregated statistics');
-    
-    // Set today's date as minimum for booking
-    const bookingDate = document.getElementById('bookingDate');
-    if (bookingDate) {
-        const today = new Date().toISOString().split('T')[0];
-        bookingDate.min = today;
-    }
-    
-    // Check service health
-    fetch('/api/health')
-        .then(res => res.json())
-        .then(data => {
-            console.log('Health check:', data);
-            if (data.dependencies && data.dependencies.composite_service === 'healthy') {
-                console.log('✅ Composite Service is available');
+                    `;
+                }).join('');
             } else {
-                console.warn('⚠️ Composite Service may be unavailable');
+                listElement.innerHTML = `<p style="color: #666; text-align: center;">No ${status.replace('_', ' ')} jobs found.</p>`;
             }
-        })
-        .catch(err => console.error('Health check failed:', err));
-});
+        }
+    } catch (error) {
+        console.error('Failed to load jobs:', error);
+    }
+}
+
+async function startWalk(assignmentId) {
+    try {
+        const response = await fetch(`/api/assignments/${assignmentId}`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                status: 'in_progress',
+                start_time: new Date().toISOString()
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert('Walk started! Have a great walk!');
+            loadMyJobs('pending');
+        } else {
+            alert('Failed to start walk: ' + result.message);
+        }
+    } catch (error) {
+        console.error('Start walk error:', error);
+        alert('Failed to start walk. Please try again.');
+    }
+}
+
+async function completeWalk(assignmentId) {
+    try {
+        const response = await fetch(`/api/assignments/${assignmentId}`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                status: 'completed',
+                end_time: new Date().toISOString()
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert('Walk completed! Great job!');
+            loadMyJobs('in_progress');
+        } else {
+            alert('Failed to complete walk: ' + result.message);
+        }
+    } catch (error) {
+        console.error('Complete walk error:', error);
+        alert('Failed to complete walk. Please try again.');
+    }
+}
+
+// ==================== REVIEW MANAGEMENT ====================
+
+function openReviewModal(walkId, walkerId) {
+    document.getElementById('reviewWalkId').value = walkId;
+    document.getElementById('reviewWalkerId').value = walkerId;
+    selectedRating = 0;
+    setRating(0);
+    document.getElementById('reviewText').value = '';
+    showModal('reviewModal');
+}
+
+// ==================== UTILITY FUNCTIONS ====================
+
+function getStatusColor(status) {
+    switch (status) {
+        case 'requested':
+            return '#ff9800';
+        case 'accepted':
+        case 'pending':
+            return '#2196f3';
+        case 'in_progress':
+            return '#9c27b0';
+        case 'completed':
+            return '#4caf50';
+        case 'cancelled':
+            return '#f44336';
+        default:
+            return '#666';
+    }
+}
+
+// Format date for display
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+// Console log for debugging
+console.log('PawPal Web Application Initialized');
+console.log('Features:');
+console.log('- Google OAuth2 Authentication');
+console.log('- Walk Request Management');
+console.log('- Walk Acceptance (Walkers)');
+console.log('- Review System');
