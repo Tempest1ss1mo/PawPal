@@ -643,11 +643,14 @@ def pets():
             }), 401
 
         data = request.json
-        logger.info(f"Adding new pet: {data.get('name')}")
+        logger.info(f"Adding new pet: {data.get('name')} for user {session['user_id']}")
 
         try:
+            # Ensure owner_id is a string
+            owner_id = str(session['user_id'])
+
             dog_data = {
-                'owner_id': session['user_id'],
+                'owner_id': owner_id,
                 'name': data.get('name'),
                 'breed': data.get('breed', 'Mixed'),
                 'age': int(data.get('ageYears', 0)) if data.get('ageYears') else 0,
@@ -661,6 +664,8 @@ def pets():
             if data.get('special_needs'):
                 dog_data['special_needs'] = data.get('special_needs')
 
+            logger.info(f"Sending dog data to user service: {dog_data}")
+
             response = requests.post(
                 f'{USER_SERVICE_URL}/api/dogs',
                 json=dog_data,
@@ -668,15 +673,29 @@ def pets():
                 timeout=10
             )
 
+            logger.info(f"User service response status: {response.status_code}")
+            logger.info(f"User service response body: {response.text}")
+
             if response.status_code in [200, 201]:
                 result = response.json()
+                # Check if the response indicates success
+                if result.get('success') == False:
+                    return jsonify({
+                        'success': False,
+                        'message': result.get('message', 'Failed to add pet')
+                    }), 400
                 return jsonify({
                     'success': True,
                     'message': 'Pet added successfully',
                     'data': result.get('data', result)
                 })
             else:
-                error_msg = response.json().get('message', 'Failed to add pet')
+                try:
+                    error_response = response.json()
+                    error_msg = error_response.get('message') or error_response.get('error') or 'Failed to add pet'
+                except:
+                    error_msg = f'Failed to add pet (status: {response.status_code})'
+                logger.error(f"Add pet failed: {error_msg}")
                 return jsonify({
                     'success': False,
                     'message': error_msg

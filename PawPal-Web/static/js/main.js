@@ -134,6 +134,14 @@ function updateUIForLoggedInUser() {
         el.style.display = 'flex';
     });
 
+    // Hide hero guest buttons, show auth buttons
+    document.querySelectorAll('.hero-guest-btn').forEach(el => {
+        el.style.display = 'none';
+    });
+    document.querySelectorAll('.hero-auth-btn').forEach(el => {
+        el.style.display = 'inline-block';
+    });
+
     // Show role-specific navigation
     if (currentUser.role === 'owner') {
         document.querySelectorAll('.nav-owner').forEach(el => {
@@ -180,7 +188,39 @@ function updateUIForGuestUser() {
         el.style.display = 'none';
     });
 
+    // Show hero guest buttons, hide auth buttons
+    document.querySelectorAll('.hero-guest-btn').forEach(el => {
+        el.style.display = 'inline-block';
+    });
+    document.querySelectorAll('.hero-auth-btn').forEach(el => {
+        el.style.display = 'none';
+    });
+
     currentUser = null;
+}
+
+// Handle "Get Started" button click
+function handleGetStarted() {
+    if (currentUser) {
+        // If logged in, go to appropriate walk page
+        goToWalks();
+    } else {
+        // If not logged in, go to signup
+        showPage('signup');
+    }
+}
+
+// Navigate to walks page based on user role
+function goToWalks() {
+    if (currentUser) {
+        if (currentUser.role === 'owner') {
+            showPage('walks');
+        } else if (currentUser.role === 'walker') {
+            showPage('available-walks');
+        }
+    } else {
+        showPage('login');
+    }
 }
 
 async function logout() {
@@ -442,6 +482,14 @@ async function handleAddPet(e) {
         temperament: document.getElementById('petTemperament').value.trim() || 'Friendly'
     };
 
+    // Validate name is not empty
+    if (!data.name) {
+        alert('Please enter a name for your pet');
+        return;
+    }
+
+    console.log('Sending pet data:', data);
+
     try {
         const response = await fetch('/api/pets', {
             method: 'POST',
@@ -451,20 +499,24 @@ async function handleAddPet(e) {
             body: JSON.stringify(data)
         });
 
+        console.log('Response status:', response.status);
         const result = await response.json();
+        console.log('Response body:', result);
 
-        if (result.success) {
+        if (response.ok && result.success) {
             alert('Pet added successfully!');
             closeModal('addPetModal');
-            loadPets();
-            // Clear form
+            // Clear form first
             document.getElementById('addPetForm').reset();
+            // Then reload pets list
+            await loadPets();
         } else {
-            alert('Failed to add pet: ' + result.message);
+            const errorMsg = result.message || 'Unknown error occurred';
+            alert('Failed to add pet: ' + errorMsg);
         }
     } catch (error) {
         console.error('Add pet error:', error);
-        alert('Failed to add pet. Please try again.');
+        alert('Failed to add pet. Please check your connection and try again.');
     }
 }
 
@@ -558,9 +610,11 @@ async function handleReview(e) {
 // ==================== PET MANAGEMENT ====================
 
 async function loadPets() {
+    console.log('Loading pets...');
     try {
         const response = await fetch('/api/pets');
         const result = await response.json();
+        console.log('Loaded pets:', result);
 
         const petsList = document.getElementById('petsList');
         if (petsList) {
