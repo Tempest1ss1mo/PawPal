@@ -713,10 +713,12 @@ def pets():
             return jsonify({'pets': []})
 
         try:
-            url = f'{USER_SERVICE_URL}/api/dogs/owner/{session["user_id"]}'
-            logger.info(f"Fetching pets from: {url}")
+            # Use query parameter instead of path parameter
+            url = f'{USER_SERVICE_URL}/api/dogs'
+            params = {'owner_id': session["user_id"]}
+            logger.info(f"Fetching pets from: {url} with params: {params}")
 
-            response = requests.get(url, timeout=10)
+            response = requests.get(url, params=params, timeout=10)
 
             logger.info(f"Get pets response status: {response.status_code}")
             logger.info(f"Get pets response body: {response.text}")
