@@ -1500,7 +1500,7 @@ def internal_error(error):
     return jsonify({'error': 'Internal server error'}), 500
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
+    port = int(os.environ.get('PORT', 5001))
 
     print("\n" + "="*60)
     print("PawPal Web App - Full Feature Mode")
