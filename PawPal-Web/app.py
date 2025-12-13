@@ -885,7 +885,13 @@ def walks():
 
             # Owners see their own walks, walkers see all requested walks
             if user_role == 'owner':
-                params['owner_id'] = str(session['user_id'])
+                # Convert to UUID format for Walk Service
+                owner_uuid = f"00000000-0000-0000-0000-{str(session['user_id']).zfill(12)}"
+                params['owner_id'] = owner_uuid
+                # Also include status filter for owners
+                status_filter = request.args.get('status')
+                if status_filter:
+                    params['status'] = status_filter
             elif user_role == 'walker':
                 status_filter = request.args.get('status', 'requested')
                 if status_filter:
@@ -895,6 +901,8 @@ def walks():
             city = request.args.get('city')
             if city:
                 params['city'] = city
+
+            logger.info(f"Fetching walks with params: {params}")
 
             response = requests.get(
                 f'{WALK_SERVICE_URL}/walks',
@@ -1041,11 +1049,13 @@ def assignments():
             }), 400
 
         try:
-            # Create assignment
+            # Convert walker_id to UUID format for Walk Service
+            walker_uuid = f"00000000-0000-0000-0000-{str(session['user_id']).zfill(12)}"
+
+            # Create assignment (don't send 'id', let service generate it)
             assignment_data = {
-                'id': str(uuid.uuid4()),
                 'walk_id': walk_id,
-                'walker_id': str(session['user_id']),
+                'walker_id': walker_uuid,
                 'status': 'pending',
                 'notes': data.get('notes', '')
             }
@@ -1093,11 +1103,15 @@ def assignments():
             user_role = session.get('user_role')
 
             if user_role == 'walker':
-                params['walker_id'] = str(session['user_id'])
+                # Convert walker_id to UUID format for Walk Service
+                walker_uuid = f"00000000-0000-0000-0000-{str(session['user_id']).zfill(12)}"
+                params['walker_id'] = walker_uuid
 
             status = request.args.get('status')
             if status:
                 params['status'] = status
+
+            logger.info(f"Fetching assignments with params: {params}")
 
             response = requests.get(
                 f'{WALK_SERVICE_URL}/assignments',
