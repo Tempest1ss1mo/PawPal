@@ -1,0 +1,202 @@
+openapi: 3.0.0
+servers:
+  - description: Production server
+    url: https://api.pawpal.com/reviews
+  - description: Local development server
+    url: http://localhost:8001
+info:
+  description: API for managing reviews and ratings in PawPal dog-walking coordination system.
+  version: "1.0.0"
+  title: PawPal review service API
+  contact:
+    email: bl3092@columbia.edu
+tags:
+  - name: Reviews
+    description: Manage reviews for completed walks.
+paths:
+  /reviews:
+    get:
+      summary: List all reviews
+      tags:
+        - Reviews
+      parameters:
+        - name: walkerId
+          in: query
+          description: Filter reviews for a specific walker
+          required: false
+          schema:
+            type: string
+        - name: ownerId
+          in: query
+          description: Filter reviews written by a specific owner
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of reviews
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Review"
+        "400":
+          description: Invalid input or missing required fields
+    post:
+      summary: Create a new review
+      tags:
+        - Reviews
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewCreate"
+      responses:
+        "201":
+          description: Review created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Review"
+        "400":
+          description: Invalid input or missing required fields
+        "404":
+          description: Related walk or user not found
+
+  /reviews/{reviewId}:
+    get:
+      summary: Get a review by ID
+      tags:
+        - Reviews
+      parameters:
+        - name: reviewId
+          in: path
+          description: ID of the review
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Review found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Review"
+        "404":
+          description: Review not found
+
+    patch:
+      summary: Update an existing review
+      tags:
+        - Reviews
+      parameters:
+        - name: reviewId
+          in: path
+          description: ID of the review to update
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewUpdate"
+      responses:
+        "200":
+          description: Review updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Review"
+        "400":
+          description: Invalid update fields
+        "404":
+          description: Review not found
+
+    delete:
+      summary: Delete a review
+      tags:
+        - Reviews
+      parameters:
+        - name: reviewId
+          in: path
+          description: ID of the review to delete
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Review deleted successfully
+        "404":
+          description: Review not found
+
+components:
+  schemas:
+    Review:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "elfs-asdl-12kx"
+        walkId:
+          type: string
+          example: "slakdce2la1"
+        ownerId:
+          type: string
+          example: "owner-ald3"
+        walkerId:
+          type: string
+          example: "walker-2k23"
+        rating:
+          type: number
+          format: float
+          minimum: 1
+          maximum: 5
+          example: 4.5
+        comment:
+          type: string
+          example: "Great walk! My dog was super happy."
+        createdAt:
+          type: string
+          format: date-time
+          example: "2025-10-10T12:00:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2025-10-10T13:00:00Z"
+
+    ReviewCreate:
+      type: object
+      required: 
+        - walkId
+        - ownerId
+        - walkerId
+        - rating
+      properties:
+        walkId:
+          type: string
+        ownerId:
+          type: string
+        walkerId:
+          type: string
+        rating:
+          type: number
+          format: float
+          minimum: 1
+          maximum: 5
+        comment:
+          type: string
+
+    ReviewUpdate:
+      type: object
+      properties:
+        rating:
+          type: number
+          format: float
+          minimum: 1
+          maximum: 5
+        comment:
+          type: string
