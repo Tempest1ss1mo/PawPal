@@ -646,8 +646,8 @@ def pets():
         logger.info(f"Adding new pet: {data.get('name')} for user {session['user_id']}")
 
         try:
-            # Ensure owner_id is a string
-            owner_id = str(session['user_id'])
+            # Ensure owner_id is an integer (as per API spec)
+            owner_id = int(session['user_id'])
 
             dog_data = {
                 'owner_id': owner_id,
