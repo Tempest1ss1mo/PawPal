@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PawPal - Find Trusted Dog Walkers</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
     <!-- Navigation -->
@@ -97,16 +96,6 @@
             <div class="form-container">
                 <h2>Login to Your Account</h2>
 
-                <!-- Google OAuth2 Login -->
-                <div style="margin-bottom: 2rem; text-align: center;">
-                    <p style="margin-bottom: 1rem; color: #666;">Sign in with Google</p>
-                    <div id="googleSignInButton" style="display: flex; justify-content: center;"></div>
-                </div>
-
-                <div style="text-align: center; margin: 1.5rem 0; color: #999;">
-                    <span style="background: white; padding: 0 1rem;">or login with email</span>
-                </div>
-
                 <form id="loginForm">
                     <div class="form-group">
                         <label>Name <span style="color: red;">*</span></label>
@@ -130,16 +119,6 @@
         <div class="container">
             <div class="form-container">
                 <h2>Create Your Account</h2>
-
-                <!-- Google OAuth2 Signup -->
-                <div style="margin-bottom: 2rem; text-align: center;">
-                    <p style="margin-bottom: 1rem; color: #666;">Sign up with Google</p>
-                    <div id="googleSignUpButton" style="display: flex; justify-content: center;"></div>
-                </div>
-
-                <div style="text-align: center; margin: 1.5rem 0; color: #999;">
-                    <span style="background: white; padding: 0 1rem;">or sign up with email</span>
-                </div>
 
                 <form id="signupForm">
                     <div style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
@@ -499,10 +478,6 @@
         </div>
     </div>
 
-    <script>
-        // Pass Google Client ID to JavaScript
-        const GOOGLE_CLIENT_ID = '{{ google_client_id }}';
-    </script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>
