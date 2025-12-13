@@ -659,8 +659,8 @@ def pets():
                 'energy_level': data.get('energy_level', 'medium'),
                 'is_friendly_with_other_dogs': True,
                 'is_friendly_with_children': True,
-                'special_needs': data.get('special_needs', ''),
-                'medical_notes': data.get('medical_notes', ''),
+                'special_needs': data.get('special_needs') or 'None',
+                'medical_notes': data.get('medical_notes') or 'None',
                 'profile_image_url': data.get('profile_image_url', 'https://via.placeholder.com/150')
             }
 
