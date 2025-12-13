@@ -713,10 +713,13 @@ def pets():
             return jsonify({'pets': []})
 
         try:
-            response = requests.get(
-                f'{USER_SERVICE_URL}/api/dogs/owner/{session["user_id"]}',
-                timeout=10
-            )
+            url = f'{USER_SERVICE_URL}/api/dogs/owner/{session["user_id"]}'
+            logger.info(f"Fetching pets from: {url}")
+
+            response = requests.get(url, timeout=10)
+
+            logger.info(f"Get pets response status: {response.status_code}")
+            logger.info(f"Get pets response body: {response.text}")
 
             if response.status_code == 200:
                 result = response.json()
@@ -735,6 +738,7 @@ def pets():
 
                 return jsonify({'pets': pets_formatted})
             else:
+                logger.error(f"Failed to get pets: {response.status_code}")
                 return jsonify({'pets': []})
 
         except requests.exceptions.RequestException as e:
