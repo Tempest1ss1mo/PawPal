@@ -1216,10 +1216,20 @@ def reviews():
         data = request.json
 
         try:
+            # Convert IDs to UUID format for Review Service
+            owner_uuid = f"00000000-0000-0000-0000-{str(session['user_id']).zfill(12)}"
+
+            # walker_id might come from the walk data
+            walker_id = data.get('walker_id', '')
+            if walker_id and walker_id.isdigit():
+                walker_uuid = f"00000000-0000-0000-0000-{str(walker_id).zfill(12)}"
+            else:
+                walker_uuid = walker_id  # Keep as is if already UUID format or empty
+
             review_data = {
                 'walkId': data.get('walk_id'),
-                'ownerId': str(session['user_id']),
-                'walkerId': data.get('walker_id'),
+                'ownerId': owner_uuid,
+                'walkerId': walker_uuid,
                 'rating': float(data.get('rating', 5)),
                 'comment': data.get('comment', '')
             }
