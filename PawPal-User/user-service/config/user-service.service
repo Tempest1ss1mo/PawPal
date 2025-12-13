@@ -1,0 +1,26 @@
+[Unit]
+Description=PawPal User Service
+After=network.target mysql.service
+Wants=mysql.service
+
+[Service]
+Type=simple
+User=YOUR_USERNAME
+Group=YOUR_GROUP
+WorkingDirectory=/opt/pawpal/user-service
+Environment=NODE_ENV=production
+EnvironmentFile=/opt/pawpal/user-service/.env
+ExecStart=/usr/bin/node src/app.js
+Restart=always
+RestartSec=10
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=user-service
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+

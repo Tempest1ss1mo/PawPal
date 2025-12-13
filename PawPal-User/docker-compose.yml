@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: pawpal-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password_123
+      MYSQL_DATABASE: pawpal_db
+      MYSQL_USER: pawpal_user
+      MYSQL_PASSWORD: pawpal_secure_2024!
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./database/sample_data.sql:/docker-entrypoint-initdb.d/02-sample_data.sql
+      - ./database/connection_config.sql:/docker-entrypoint-initdb.d/03-connection_config.sql
+    command: --default-authentication-plugin=mysql_native_password
+    networks:
+      - pawpal-network
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: pawpal-phpmyadmin
+    environment:
+      PMA_HOST: mysql
+      PMA_USER: pawpal_user
+      PMA_PASSWORD: pawpal_secure_2024!
+    ports:
+      - "8080:80"
+    depends_on:
+      - mysql
+    networks:
+      - pawpal-network
+
+volumes:
+  mysql_data:
+
+networks:
+  pawpal-network:
+    driver: bridge
+
