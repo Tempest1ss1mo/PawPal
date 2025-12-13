@@ -11,14 +11,28 @@ DB_PASS = os.getenv("DB_PASS")
 DB_NAME = os.getenv("DB_NAME")
 CLOUD_SQL_CONNECTION_NAME = os.getenv("CLOUD_SQL_CONNECTION_NAME")
 
+# For local development: use TCP connection
+DB_HOST = os.getenv("DB_HOST", "")  # Set to Cloud SQL public IP or 127.0.0.1 for proxy
+DB_PORT = int(os.getenv("DB_PORT", "3306"))
+
 DB_SOCKET_DIR = "/cloudsql"
 
-MYSQL_CONFIG: dict[str, str | int] = {
-    "user": DB_USER,
-    "password": DB_PASS,
-    "database": DB_NAME,
-    "unix_socket": f"{DB_SOCKET_DIR}/{CLOUD_SQL_CONNECTION_NAME}",
-}
+# Use TCP if DB_HOST is set, otherwise use Unix socket (for Cloud Run)
+if DB_HOST:
+    MYSQL_CONFIG: dict[str, str | int] = {
+        "user": DB_USER,
+        "password": DB_PASS,
+        "database": DB_NAME,
+        "host": DB_HOST,
+        "port": DB_PORT,
+    }
+else:
+    MYSQL_CONFIG: dict[str, str | int] = {
+        "user": DB_USER,
+        "password": DB_PASS,
+        "database": DB_NAME,
+        "unix_socket": f"{DB_SOCKET_DIR}/{CLOUD_SQL_CONNECTION_NAME}",
+    }
 
 
 class MySQLPool:
@@ -27,14 +41,28 @@ class MySQLPool:
         self._password: str = kwargs.get("password", "")
         self._database: str = kwargs.get("database", "test")
         self._unix_socket: str = kwargs.get("unix_socket", "")
+        self._host: str = kwargs.get("host", "")
+        self._port: int = kwargs.get("port", 3306)
         self._pool_size: int = pool_size
 
-        self.dbconfig: dict[str, Any] = {
-            "user": self._user,
-            "password": self._password,
-            "database": self._database,
-            "unix_socket": self._unix_socket,
-        }
+        # Use TCP if host is provided, otherwise use Unix socket
+        if self._host:
+            self.dbconfig: dict[str, Any] = {
+                "user": self._user,
+                "password": self._password,
+                "database": self._database,
+                "host": self._host,
+                "port": self._port,
+            }
+            self._connection_info = f"TCP: {self._host}:{self._port}"
+        else:
+            self.dbconfig: dict[str, Any] = {
+                "user": self._user,
+                "password": self._password,
+                "database": self._database,
+                "unix_socket": self._unix_socket,
+            }
+            self._connection_info = f"Unix socket: {self._unix_socket}"
 
         self.pool = None
         self._initialized = False
@@ -48,9 +76,7 @@ class MySQLPool:
                 **self.dbconfig,
             )
             self._initialized = True
-            print(
-                f"Cloud SQL connection pool established via Unix socket: {self._unix_socket}"
-            )
+            print(f"Cloud SQL connection pool established via {self._connection_info}")
 
     def initialize(self) -> None:
         self._ensure_initialized()
