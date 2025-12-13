@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PawPal - Find Trusted Dog Walkers</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav>
+        <div class="container">
+            <div class="logo">PawPal</div>
+            <div class="nav-links">
+                <a href="#" onclick="showPage('home')">Home</a>
+                <a href="#" onclick="showPage('walks')" class="nav-auth-required nav-owner" style="display: none;">My Walks</a>
+                <a href="#" onclick="showPage('available-walks')" class="nav-auth-required nav-walker" style="display: none;">Available Walks</a>
+                <a href="#" onclick="showPage('my-jobs')" class="nav-auth-required nav-walker" style="display: none;">My Jobs</a>
+                <a href="#" onclick="showPage('profile')" class="nav-auth-required" style="display: none;">My Profile</a>
+                <button class="btn btn-outline nav-guest-only" onclick="showPage('login')">Login</button>
+                <button class="btn nav-guest-only" onclick="showPage('signup')">Sign Up</button>
+                <div class="nav-auth-required" style="display: none; align-items: center; gap: 10px;">
+                    <span id="navUserName" style="color: #333; font-weight: 500;"></span>
+                    <span id="navUserRole" style="color: #666; font-size: 0.8em;"></span>
+                    <button class="btn btn-outline" onclick="logout()">Logout</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Home Page -->
+    <div id="home" class="page active">
+        <div class="container">
+            <div class="hero">
+                <h1>Find Trusted Pet Care Near You</h1>
+                <p>Connect with verified pet walkers and sitters in your neighborhood</p>
+                <div style="margin-top: 2rem;">
+                    <button class="btn hero-guest-btn" style="font-size: 1.2rem; padding: 1rem 2rem; margin-right: 1rem;" onclick="handleGetStarted()">
+                        Get Started
+                    </button>
+                    <button class="btn btn-outline hero-guest-btn" style="font-size: 1.2rem; padding: 1rem 2rem; background: white;" onclick="showPage('login')">
+                        Login
+                    </button>
+                    <button class="btn hero-auth-btn" style="font-size: 1.2rem; padding: 1rem 2rem; display: none;" onclick="goToWalks()">
+                        Book a Walk
+                    </button>
+                </div>
+            </div>
+
+            <div class="service-grid">
+                <div class="service-card">
+                    <div class="service-icon">🚶</div>
+                    <h3>Dog Walking</h3>
+                    <p>Professional dog walkers for daily exercise</p>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon">🏠</div>
+                    <h3>Pet Boarding</h3>
+                    <p>Safe and loving home environment</p>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon">📅</div>
+                    <h3>Day Care</h3>
+                    <p>Daytime care while you're at work</p>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon">✅</div>
+                    <h3>Drop-in Visits</h3>
+                    <p>Quick check-ins and feeding</p>
+                </div>
+            </div>
+
+            <div style="text-align: center; margin-top: 3rem;">
+                <h2>How It Works</h2>
+                <div class="service-grid" style="margin-top: 2rem;">
+                    <div class="service-card">
+                        <div class="service-icon">1️⃣</div>
+                        <h3>Sign Up</h3>
+                        <p>Create an account as a Pet Owner or Walker</p>
+                    </div>
+                    <div class="service-card">
+                        <div class="service-icon">2️⃣</div>
+                        <h3>Post or Accept</h3>
+                        <p>Owners post walk requests, Walkers accept them</p>
+                    </div>
+                    <div class="service-card">
+                        <div class="service-icon">3️⃣</div>
+                        <h3>Walk & Review</h3>
+                        <p>Complete the walk and leave a review</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Login Page -->
+    <div id="login" class="page">
+        <div class="container">
+            <div class="form-container">
+                <h2>Login to Your Account</h2>
+
+                <!-- Google OAuth2 Login -->
+                <div style="margin-bottom: 2rem; text-align: center;">
+                    <p style="margin-bottom: 1rem; color: #666;">Sign in with Google</p>
+                    <div id="googleSignInButton" style="display: flex; justify-content: center;"></div>
+                </div>
+
+                <div style="text-align: center; margin: 1.5rem 0; color: #999;">
+                    <span style="background: white; padding: 0 1rem;">or login with email</span>
+                </div>
+
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label>Name <span style="color: red;">*</span></label>
+                        <input type="text" id="loginName" placeholder="Enter your name" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Email <span style="color: red;">*</span></label>
+                        <input type="email" id="loginEmail" placeholder="Enter your email" required>
+                    </div>
+                    <button type="submit" class="btn" style="width: 100%;">Login</button>
+                </form>
+                <p style="text-align: center; margin-top: 1rem;">
+                    Don't have an account? <a href="#" onclick="showPage('signup')">Sign up</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sign Up Page -->
+    <div id="signup" class="page">
+        <div class="container">
+            <div class="form-container">
+                <h2>Create Your Account</h2>
+
+                <!-- Google OAuth2 Signup -->
+                <div style="margin-bottom: 2rem; text-align: center;">
+                    <p style="margin-bottom: 1rem; color: #666;">Sign up with Google</p>
+                    <div id="googleSignUpButton" style="display: flex; justify-content: center;"></div>
+                </div>
+
+                <div style="text-align: center; margin: 1.5rem 0; color: #999;">
+                    <span style="background: white; padding: 0 1rem;">or sign up with email</span>
+                </div>
+
+                <form id="signupForm">
+                    <div style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                        <h3 style="margin-top: 0; color: #333;">Account Information</h3>
+
+                        <div class="form-group">
+                            <label>Name <span style="color: red;">*</span></label>
+                            <input type="text" id="signupName" placeholder="Enter your full name" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Email <span style="color: red;">*</span></label>
+                            <input type="email" id="signupEmail" placeholder="your@email.com" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Account Type <span style="color: red;">*</span></label>
+                            <div class="radio-group">
+                                <div class="radio-option selected" onclick="selectAccountType(this, 'owner')">
+                                    <div>🏠</div>
+                                    <div>Pet Owner</div>
+                                </div>
+                                <div class="radio-option" onclick="selectAccountType(this, 'walker')">
+                                    <div>🚶</div>
+                                    <div>Pet Walker</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Phone <span style="color: red;">*</span></label>
+                            <input type="tel" id="signupPhone" placeholder="15551234567" required>
+                            <small style="color: #666;">Format: Digits only, no dashes or spaces</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Location <span style="color: red;">*</span></label>
+                            <input type="text" id="signupLocation" placeholder="City, State" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Profile Image URL <span style="color: red;">*</span></label>
+                            <input type="url" id="signupProfileImage" placeholder="https://example.com/your-photo.jpg" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Bio <span style="color: red;">*</span></label>
+                            <textarea id="signupBio" rows="3" placeholder="Tell us about yourself..." required></textarea>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn" style="width: 100%;">Create Account</button>
+                </form>
+                <p style="text-align: center; margin-top: 1rem;">
+                    Already have an account? <a href="#" onclick="showPage('login')">Login</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Google Registration Completion Page -->
+    <div id="google-complete" class="page">
+        <div class="container">
+            <div class="form-container">
+                <h2>Complete Your Registration</h2>
+                <p style="color: #666; margin-bottom: 1.5rem;">You're almost there! Please provide a few more details.</p>
+
+                <form id="googleCompleteForm">
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="googleEmail" readonly style="background: #f0f0f0;">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Name</label>
+                        <input type="text" id="googleName" readonly style="background: #f0f0f0;">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Account Type <span style="color: red;">*</span></label>
+                        <div class="radio-group">
+                            <div class="radio-option selected" onclick="selectGoogleAccountType(this, 'owner')">
+                                <div>🏠</div>
+                                <div>Pet Owner</div>
+                            </div>
+                            <div class="radio-option" onclick="selectGoogleAccountType(this, 'walker')">
+                                <div>🚶</div>
+                                <div>Pet Walker</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Phone <span style="color: red;">*</span></label>
+                        <input type="tel" id="googlePhone" placeholder="15551234567" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Location <span style="color: red;">*</span></label>
+                        <input type="text" id="googleLocation" placeholder="City, State" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Bio <span style="color: red;">*</span></label>
+                        <textarea id="googleBio" rows="3" placeholder="Tell us about yourself..." required></textarea>
+                    </div>
+
+                    <button type="submit" class="btn" style="width: 100%;">Complete Registration</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Page -->
+    <div id="profile" class="page">
+        <div class="container">
+            <h2>My Profile</h2>
+
+            <div class="tabs">
+                <button class="tab active" onclick="showTab(this, 'pets-tab')">My Pets</button>
+                <button class="tab" onclick="showTab(this, 'info-tab')">Personal Info</button>
+                <button class="tab" onclick="showTab(this, 'my-reviews-tab')">My Reviews</button>
+            </div>
+
+            <!-- Pets Tab -->
+            <div id="pets-tab" class="tab-content">
+                <button class="btn" onclick="showModal('addPetModal')">+ Add Pet</button>
+                <div id="petsList" style="margin-top: 2rem;">
+                    <!-- Pets will be loaded here dynamically -->
+                </div>
+            </div>
+
+            <!-- Personal Info Tab -->
+            <div id="info-tab" class="tab-content" style="display: none;">
+                <div class="form-container" id="profileInfoContainer">
+                    <p>Loading user information...</p>
+                </div>
+            </div>
+
+            <!-- Reviews Tab -->
+            <div id="my-reviews-tab" class="tab-content" style="display: none;">
+                <div id="myReviewsList">
+                    <!-- Reviews will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- My Walks Page (Owner) -->
+    <div id="walks" class="page">
+        <div class="container">
+            <h2>My Walk Requests</h2>
+
+            <button class="btn" onclick="showModal('createWalkModal')" style="margin-bottom: 2rem;">+ Create Walk Request</button>
+
+            <div class="tabs">
+                <button class="tab active" onclick="showTab(this, 'active-walks-tab'); loadMyWalks('requested')">Requested</button>
+                <button class="tab" onclick="showTab(this, 'accepted-walks-tab'); loadMyWalks('accepted')">Accepted</button>
+                <button class="tab" onclick="showTab(this, 'completed-walks-tab'); loadMyWalks('completed')">Completed</button>
+            </div>
+
+            <div id="active-walks-tab" class="tab-content">
+                <div id="myWalksList">
+                    <!-- Walk requests will be loaded here -->
+                </div>
+            </div>
+
+            <div id="accepted-walks-tab" class="tab-content" style="display: none;">
+                <div id="acceptedWalksList">
+                    <!-- Accepted walks will be loaded here -->
+                </div>
+            </div>
+
+            <div id="completed-walks-tab" class="tab-content" style="display: none;">
+                <div id="completedWalksList">
+                    <!-- Completed walks will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Available Walks Page (Walker) -->
+    <div id="available-walks" class="page">
+        <div class="container">
+            <h2>Available Walk Requests</h2>
+            <p style="color: #666; margin-bottom: 2rem;">Browse and accept walk requests from pet owners</p>
+
+            <div class="form-group" style="max-width: 300px; margin-bottom: 2rem;">
+                <label>Filter by City</label>
+                <input type="text" id="walkCityFilter" placeholder="Enter city name" onkeyup="filterWalksByCity()">
+            </div>
+
+            <div id="availableWalksList">
+                <!-- Available walks will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- My Jobs Page (Walker) -->
+    <div id="my-jobs" class="page">
+        <div class="container">
+            <h2>My Walk Jobs</h2>
+
+            <div class="tabs">
+                <button class="tab active" onclick="showTab(this, 'pending-jobs-tab'); loadMyJobs('pending')">Pending</button>
+                <button class="tab" onclick="showTab(this, 'inprogress-jobs-tab'); loadMyJobs('in_progress')">In Progress</button>
+                <button class="tab" onclick="showTab(this, 'completed-jobs-tab'); loadMyJobs('completed')">Completed</button>
+            </div>
+
+            <div id="pending-jobs-tab" class="tab-content">
+                <div id="pendingJobsList">
+                    <!-- Pending jobs will be loaded here -->
+                </div>
+            </div>
+
+            <div id="inprogress-jobs-tab" class="tab-content" style="display: none;">
+                <div id="inprogressJobsList">
+                    <!-- In-progress jobs will be loaded here -->
+                </div>
+            </div>
+
+            <div id="completed-jobs-tab" class="tab-content" style="display: none;">
+                <div id="completedJobsList">
+                    <!-- Completed jobs will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Pet Modal -->
+    <div id="addPetModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add Pet</h2>
+                <button class="close-btn" onclick="closeModal('addPetModal')">X</button>
+            </div>
+            <form id="addPetForm">
+                <div class="form-group">
+                    <label>Name <span style="color: red;">*</span></label>
+                    <input type="text" id="petName" placeholder="Pet's name" required>
+                </div>
+                <div class="form-group">
+                    <label>Breed</label>
+                    <input type="text" id="petBreed" placeholder="Pet's breed">
+                </div>
+                <div class="form-group">
+                    <label>Size</label>
+                    <select id="petSize">
+                        <option value="small">Small (under 25 lbs)</option>
+                        <option value="medium" selected>Medium (25-60 lbs)</option>
+                        <option value="large">Large (60-100 lbs)</option>
+                        <option value="extra_large">Extra Large (100+ lbs)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Age (Years)</label>
+                    <input type="number" id="petAgeYears" placeholder="Age in years" min="0">
+                </div>
+                <div class="form-group">
+                    <label>Energy Level</label>
+                    <select id="petEnergyLevel">
+                        <option value="low">Low</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="high">High</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Temperament</label>
+                    <input type="text" id="petTemperament" placeholder="e.g., Friendly, Shy, Energetic">
+                </div>
+                <button type="submit" class="btn" style="width: 100%;">Add Pet</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Create Walk Request Modal -->
+    <div id="createWalkModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Create Walk Request</h2>
+                <button class="close-btn" onclick="closeModal('createWalkModal')">X</button>
+            </div>
+            <form id="createWalkForm">
+                <div class="form-group">
+                    <label>Select Pet <span style="color: red;">*</span></label>
+                    <select id="walkPetSelect" required>
+                        <option value="">-- Select a pet --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Location <span style="color: red;">*</span></label>
+                    <input type="text" id="walkLocation" placeholder="Pickup address" required>
+                </div>
+                <div class="form-group">
+                    <label>City <span style="color: red;">*</span></label>
+                    <input type="text" id="walkCity" placeholder="City name" required>
+                </div>
+                <div class="form-group">
+                    <label>Date & Time <span style="color: red;">*</span></label>
+                    <input type="datetime-local" id="walkDateTime" required>
+                </div>
+                <div class="form-group">
+                    <label>Duration (minutes) <span style="color: red;">*</span></label>
+                    <select id="walkDuration" required>
+                        <option value="15">15 minutes</option>
+                        <option value="30" selected>30 minutes</option>
+                        <option value="45">45 minutes</option>
+                        <option value="60">1 hour</option>
+                        <option value="90">1.5 hours</option>
+                        <option value="120">2 hours</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn" style="width: 100%;">Create Walk Request</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Review Modal -->
+    <div id="reviewModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Leave a Review</h2>
+                <button class="close-btn" onclick="closeModal('reviewModal')">X</button>
+            </div>
+            <form id="reviewForm">
+                <input type="hidden" id="reviewWalkId">
+                <input type="hidden" id="reviewWalkerId">
+                <div class="form-group">
+                    <label>Rating</label>
+                    <div style="font-size: 2rem; cursor: pointer;" id="ratingStars">
+                        <span onclick="setRating(1)">&#9734;</span>
+                        <span onclick="setRating(2)">&#9734;</span>
+                        <span onclick="setRating(3)">&#9734;</span>
+                        <span onclick="setRating(4)">&#9734;</span>
+                        <span onclick="setRating(5)">&#9734;</span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Your Review</label>
+                    <textarea id="reviewText" rows="4" placeholder="Tell others about your experience..." required></textarea>
+                </div>
+                <button type="submit" class="btn" style="width: 100%;">Submit Review</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Walk Details Modal -->
+    <div id="walkDetailsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Walk Details</h2>
+                <button class="close-btn" onclick="closeModal('walkDetailsModal')">X</button>
+            </div>
+            <div id="walkDetailsContent">
+                <!-- Walk details will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Load config first, then main.js -->
+    <script src="config.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

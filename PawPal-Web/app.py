@@ -16,8 +16,18 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 app.config['DEBUG'] = os.environ.get('FLASK_DEBUG', 'True') == 'True'
 
-# Enable CORS
-CORS(app, supports_credentials=True)
+# Session cookie configuration for cross-origin requests
+app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+app.config['SESSION_COOKIE_SECURE'] = True  # Required for SameSite=None
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+
+# Enable CORS for frontend/backend separation
+# Allow requests from Cloud Storage, localhost, and other origins
+CORS(app,
+     supports_credentials=True,
+     origins=['*'],  # Allow all origins for Cloud Storage deployment
+     allow_headers=['Content-Type', 'Authorization', 'X-Requested-With'],
+     methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
