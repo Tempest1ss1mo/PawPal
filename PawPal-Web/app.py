@@ -833,10 +833,14 @@ def walks():
         data = request.json
 
         try:
+            # Convert integer IDs to UUID format for Walk Service
+            # Walk Service expects UUID strings
+            owner_uuid = f"00000000-0000-0000-0000-{str(session['user_id']).zfill(12)}"
+            pet_uuid = f"00000000-0000-0000-0000-{str(data.get('pet_id')).zfill(12)}"
+
             walk_data = {
-                'id': str(uuid.uuid4()),
-                'owner_id': str(session['user_id']),
-                'pet_id': str(data.get('pet_id')),
+                'owner_id': owner_uuid,
+                'pet_id': pet_uuid,
                 'location': data.get('location', ''),
                 'city': data.get('city', ''),
                 'scheduled_time': data.get('scheduled_time'),
