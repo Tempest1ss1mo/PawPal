@@ -36,11 +36,14 @@
                 <h1>Find Trusted Pet Care Near You</h1>
                 <p>Connect with verified pet walkers and sitters in your neighborhood</p>
                 <div style="margin-top: 2rem;">
-                    <button class="btn" style="font-size: 1.2rem; padding: 1rem 2rem; margin-right: 1rem;" onclick="showPage('signup')">
+                    <button class="btn hero-guest-btn" style="font-size: 1.2rem; padding: 1rem 2rem; margin-right: 1rem;" onclick="handleGetStarted()">
                         Get Started
                     </button>
-                    <button class="btn btn-outline" style="font-size: 1.2rem; padding: 1rem 2rem; background: white;" onclick="showPage('login')">
+                    <button class="btn btn-outline hero-guest-btn" style="font-size: 1.2rem; padding: 1rem 2rem; background: white;" onclick="showPage('login')">
                         Login
+                    </button>
+                    <button class="btn hero-auth-btn" style="font-size: 1.2rem; padding: 1rem 2rem; display: none;" onclick="goToWalks()">
+                        Book a Walk
                     </button>
                 </div>
             </div>
