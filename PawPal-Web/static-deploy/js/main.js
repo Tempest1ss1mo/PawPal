@@ -289,6 +289,7 @@ function showPage(pageId) {
         case 'profile':
             loadPets();
             loadUserProfile();
+            loadMyReviews();
             break;
         case 'walks':
             loadPetsForWalkModal();
@@ -727,6 +728,61 @@ async function loadUserProfile() {
                 <input type="text" value="${currentUser.role || 'owner'}" readonly style="text-transform: capitalize;">
             </div>
         `;
+    }
+}
+
+// ==================== REVIEW DISPLAY ====================
+
+async function loadMyReviews() {
+    if (!currentUser) return;
+
+    try {
+        // For owners, get reviews they've written (as owner)
+        // For walkers, get reviews about them (as walker)
+        let url;
+        if (currentUser.role === 'owner') {
+            const ownerUuid = `00000000-0000-0000-0000-${String(currentUser.id).padStart(12, '0')}`;
+            url = CONFIG.API_BASE_URL + `/api/reviews?owner_id=${ownerUuid}`;
+        } else {
+            const walkerUuid = `00000000-0000-0000-0000-${String(currentUser.id).padStart(12, '0')}`;
+            url = CONFIG.API_BASE_URL + `/api/reviews?walker_id=${walkerUuid}`;
+        }
+
+        const response = await fetch(url, {
+            credentials: 'include'
+        });
+        const result = await response.json();
+
+        const reviewsList = document.getElementById('myReviewsList');
+        if (reviewsList) {
+            if (result.reviews && result.reviews.length > 0) {
+                reviewsList.innerHTML = result.reviews.map(review => {
+                    const createdDate = new Date(review.createdAt);
+                    const stars = '★'.repeat(Math.round(review.rating)) + '☆'.repeat(5 - Math.round(review.rating));
+
+                    return `
+                        <div class="review-card">
+                            <div class="review-header">
+                                <div class="rating">
+                                    <span class="stars" style="color: #ffd700;">${stars}</span>
+                                    <span>(${review.rating}/5)</span>
+                                </div>
+                                <span class="review-date">${createdDate.toLocaleDateString()}</span>
+                            </div>
+                            <p>${review.comment || 'No comment'}</p>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                reviewsList.innerHTML = '<p style="color: #666; text-align: center;">No reviews yet.</p>';
+            }
+        }
+    } catch (error) {
+        console.error('Failed to load reviews:', error);
+        const reviewsList = document.getElementById('myReviewsList');
+        if (reviewsList) {
+            reviewsList.innerHTML = '<p style="color: #666; text-align: center;">Failed to load reviews.</p>';
+        }
     }
 }
 
