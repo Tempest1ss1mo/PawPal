@@ -10,8 +10,14 @@ from uuid import UUID
 import httpx
 from fastapi import HTTPException
 
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add current and parent directory to path for imports
+# (current dir for Docker deployment, parent dir for local development)
+current_dir = str(Path(__file__).parent)
+parent_dir = str(Path(__file__).parent.parent)
+if current_dir not in sys.path:
+    sys.path.insert(0, current_dir)
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
 
 from models.walk import WalkCreate, WalkRead, WalkUpdate
 from models.assignment import AssignmentCreate, AssignmentRead, AssignmentUpdate

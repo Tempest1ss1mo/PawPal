@@ -35,16 +35,17 @@ logger = logging.getLogger(__name__)
 
 # Microservice URLs
 USER_SERVICE_URL = os.environ.get('USER_SERVICE_URL', 'http://34.9.57.25:3001')
-COMPOSITE_SERVICE_URL = os.environ.get('COMPOSITE_SERVICE_URL', 'http://localhost:3002')
-WALK_SERVICE_URL = os.environ.get('WALK_SERVICE_URL', 'http://localhost:8000')
+USER_COMPOSITE_SERVICE_URL = os.environ.get('USER_COMPOSITE_SERVICE_URL', 'http://localhost:3002')
+# Walk Composite Service (port 8002) - delegates to Walk Atomic Service (port 8000)
+WALK_SERVICE_URL = os.environ.get('WALK_SERVICE_URL', 'http://localhost:8002')
 REVIEW_SERVICE_URL = os.environ.get('REVIEW_SERVICE_URL', 'http://localhost:8001')
 
 # Google OAuth2 Config
 GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '445201823926-sqscktas1gm0k5ve91mchu5cj96bofcm.apps.googleusercontent.com')
 
-logger.info(f"Using User Service at: {USER_SERVICE_URL}")
-logger.info(f"Using Walk Service at: {WALK_SERVICE_URL}")
-logger.info(f"Using Review Service at: {REVIEW_SERVICE_URL}")
+logger.info(f"Using User Service (atomic) at: {USER_SERVICE_URL}")
+logger.info(f"Using Walk Service (composite) at: {WALK_SERVICE_URL}")
+logger.info(f"Using Review Service (atomic) at: {REVIEW_SERVICE_URL}")
 
 # Routes
 @app.route('/')
@@ -77,17 +78,19 @@ def health():
             'error': str(e)
         }
 
-    # Check Walk Service
+    # Check Walk Composite Service
     try:
-        response = requests.get(f'{WALK_SERVICE_URL}/', timeout=5)
+        response = requests.get(f'{WALK_SERVICE_URL}/health', timeout=5)
         health_status['dependencies']['walk_service'] = {
             'status': 'healthy' if response.status_code == 200 else 'unhealthy',
-            'url': WALK_SERVICE_URL
+            'url': WALK_SERVICE_URL,
+            'type': 'composite'
         }
     except Exception as e:
         health_status['dependencies']['walk_service'] = {
             'status': 'unavailable',
             'url': WALK_SERVICE_URL,
+            'type': 'composite',
             'error': str(e)
         }
 
@@ -1539,15 +1542,18 @@ def service_info():
     return jsonify({
         'user_service': {
             'url': USER_SERVICE_URL,
-            'swagger_ui': f'{USER_SERVICE_URL}/api-docs'
+            'swagger_ui': f'{USER_SERVICE_URL}/api-docs',
+            'type': 'atomic'
         },
         'walk_service': {
             'url': WALK_SERVICE_URL,
-            'swagger_ui': f'{WALK_SERVICE_URL}/docs'
+            'swagger_ui': f'{WALK_SERVICE_URL}/docs',
+            'type': 'composite'
         },
         'review_service': {
             'url': REVIEW_SERVICE_URL,
-            'swagger_ui': f'{REVIEW_SERVICE_URL}/docs'
+            'swagger_ui': f'{REVIEW_SERVICE_URL}/docs',
+            'type': 'atomic'
         }
     })
 
@@ -1569,9 +1575,9 @@ if __name__ == '__main__':
     print("PawPal Web App - Full Feature Mode")
     print("="*60)
     print(f"Web App Port: {port}")
-    print(f"User Service: {USER_SERVICE_URL}")
-    print(f"Walk Service: {WALK_SERVICE_URL}")
-    print(f"Review Service: {REVIEW_SERVICE_URL}")
+    print(f"User Service (atomic): {USER_SERVICE_URL}")
+    print(f"Walk Service (composite): {WALK_SERVICE_URL}")
+    print(f"Review Service (atomic): {REVIEW_SERVICE_URL}")
     print("="*60)
     print("")
     print("Features:")
@@ -1582,6 +1588,7 @@ if __name__ == '__main__':
     print("   - Walk acceptance (walkers)")
     print("   - Review system")
     print("   - Walker search")
+    print("   - Walk Composite: FK validation, parallel execution")
     print("="*60 + "\n")
 
     app.run(

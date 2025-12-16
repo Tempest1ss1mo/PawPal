@@ -39,7 +39,7 @@ from models.walk import WalkCreate, WalkRead, WalkUpdate
 from models.assignment import AssignmentCreate, AssignmentRead, AssignmentUpdate
 from models.event import EventCreate, EventRead
 
-port = int(os.environ.get("COMPOSITE_PORT", 8001))
+port = int(os.environ.get("COMPOSITE_PORT", 8002))
 atomic_service_url = os.getenv("ATOMIC_SERVICE_URL", "http://localhost:8000")
 
 # Global client instance
@@ -78,6 +78,24 @@ def get_client() -> AtomicServiceClient:
 def root():
     return {
         "message": "Welcome to the Walk Service Composite API. See /docs for details.",
+        "atomic_service_url": atomic_service_url
+    }
+
+
+@app.get("/health")
+async def health(client: AtomicServiceClient = Depends(get_client)):
+    """Health check endpoint - verifies connection to atomic service."""
+    try:
+        # Try to reach the atomic service
+        response = await client.client.get(f"{atomic_service_url}/")
+        atomic_status = "connected" if response.status_code == 200 else "degraded"
+    except Exception as e:
+        atomic_status = "disconnected"
+
+    return {
+        "service": "PawPal Walk Composite Service",
+        "status": "healthy" if atomic_status == "connected" else "degraded",
+        "atomic_service": atomic_status,
         "atomic_service_url": atomic_service_url
     }
 

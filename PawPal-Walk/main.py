@@ -109,10 +109,13 @@ def create_assignment(assign: AssignmentCreate):
 
 @app.get("/assignments", response_model=List[AssignmentRead])
 def list_assignments(
+    walk_id: Optional[UUID] = Query(None),
     walker_id: Optional[UUID] = Query(None),
     status: Optional[str] = Query(None),
 ):
     results = list(assignments.values())
+    if walk_id:
+        results = [a for a in results if a.walk_id == walk_id]
     if walker_id:
         results = [a for a in results if a.walker_id == walker_id]
     if status:
