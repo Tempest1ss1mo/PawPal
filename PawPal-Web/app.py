@@ -35,17 +35,20 @@ logger = logging.getLogger(__name__)
 
 # Microservice URLs
 USER_SERVICE_URL = os.environ.get('USER_SERVICE_URL', 'http://34.9.57.25:3001')
-USER_COMPOSITE_SERVICE_URL = os.environ.get('USER_COMPOSITE_SERVICE_URL', 'http://localhost:3002')
-# Walk Composite Service (port 8002) - delegates to Walk Atomic Service (port 8000)
-WALK_SERVICE_URL = os.environ.get('WALK_SERVICE_URL', 'http://localhost:8002')
-REVIEW_SERVICE_URL = os.environ.get('REVIEW_SERVICE_URL', 'http://localhost:8001')
+# PawPal Composite Service - integrates Walk, Review, and User services
+# Provides: FK validation, parallel execution, orchestrated endpoints
+COMPOSITE_SERVICE_URL = os.environ.get('COMPOSITE_SERVICE_URL', 'http://localhost:8002')
+# For backwards compatibility, WALK_SERVICE_URL and REVIEW_SERVICE_URL point to composite
+WALK_SERVICE_URL = os.environ.get('WALK_SERVICE_URL', COMPOSITE_SERVICE_URL)
+REVIEW_SERVICE_URL = os.environ.get('REVIEW_SERVICE_URL', COMPOSITE_SERVICE_URL)
 
 # Google OAuth2 Config
 GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '445201823926-sqscktas1gm0k5ve91mchu5cj96bofcm.apps.googleusercontent.com')
 
 logger.info(f"Using User Service (atomic) at: {USER_SERVICE_URL}")
-logger.info(f"Using Walk Service (composite) at: {WALK_SERVICE_URL}")
-logger.info(f"Using Review Service (atomic) at: {REVIEW_SERVICE_URL}")
+logger.info(f"Using Composite Service at: {COMPOSITE_SERVICE_URL}")
+logger.info(f"Using Walk Service at: {WALK_SERVICE_URL}")
+logger.info(f"Using Review Service at: {REVIEW_SERVICE_URL}")
 
 # Routes
 @app.route('/')
@@ -78,35 +81,35 @@ def health():
             'error': str(e)
         }
 
-    # Check Walk Composite Service
+    # Check PawPal Composite Service (handles Walk and Review)
     try:
-        response = requests.get(f'{WALK_SERVICE_URL}/health', timeout=5)
-        health_status['dependencies']['walk_service'] = {
+        response = requests.get(f'{COMPOSITE_SERVICE_URL}/health', timeout=5)
+        composite_data = response.json() if response.status_code == 200 else {}
+        health_status['dependencies']['composite_service'] = {
             'status': 'healthy' if response.status_code == 200 else 'unhealthy',
-            'url': WALK_SERVICE_URL,
-            'type': 'composite'
+            'url': COMPOSITE_SERVICE_URL,
+            'type': 'composite',
+            'atomic_services': composite_data.get('atomic_services', {})
         }
     except Exception as e:
-        health_status['dependencies']['walk_service'] = {
+        health_status['dependencies']['composite_service'] = {
             'status': 'unavailable',
-            'url': WALK_SERVICE_URL,
+            'url': COMPOSITE_SERVICE_URL,
             'type': 'composite',
             'error': str(e)
         }
 
-    # Check Review Service
-    try:
-        response = requests.get(f'{REVIEW_SERVICE_URL}/health', timeout=5)
-        health_status['dependencies']['review_service'] = {
-            'status': 'healthy' if response.status_code == 200 else 'unhealthy',
-            'url': REVIEW_SERVICE_URL
-        }
-    except Exception as e:
-        health_status['dependencies']['review_service'] = {
-            'status': 'unavailable',
-            'url': REVIEW_SERVICE_URL,
-            'error': str(e)
-        }
+    # Note: Walk and Review services are accessed through the composite service
+    health_status['dependencies']['walk_service'] = {
+        'status': health_status['dependencies'].get('composite_service', {}).get('status', 'unknown'),
+        'url': WALK_SERVICE_URL,
+        'note': 'via composite service'
+    }
+    health_status['dependencies']['review_service'] = {
+        'status': health_status['dependencies'].get('composite_service', {}).get('status', 'unknown'),
+        'url': REVIEW_SERVICE_URL,
+        'note': 'via composite service'
+    }
 
     return jsonify(health_status)
 
@@ -1540,6 +1543,12 @@ def get_stats():
 def service_info():
     """Get service information"""
     return jsonify({
+        'composite_service': {
+            'url': COMPOSITE_SERVICE_URL,
+            'swagger_ui': f'{COMPOSITE_SERVICE_URL}/docs',
+            'type': 'composite',
+            'description': 'Integrates Walk, Review, and User services with FK validation'
+        },
         'user_service': {
             'url': USER_SERVICE_URL,
             'swagger_ui': f'{USER_SERVICE_URL}/api-docs',
@@ -1548,12 +1557,12 @@ def service_info():
         'walk_service': {
             'url': WALK_SERVICE_URL,
             'swagger_ui': f'{WALK_SERVICE_URL}/docs',
-            'type': 'composite'
+            'note': 'via composite service'
         },
         'review_service': {
             'url': REVIEW_SERVICE_URL,
             'swagger_ui': f'{REVIEW_SERVICE_URL}/docs',
-            'type': 'atomic'
+            'note': 'via composite service'
         }
     })
 
@@ -1576,8 +1585,8 @@ if __name__ == '__main__':
     print("="*60)
     print(f"Web App Port: {port}")
     print(f"User Service (atomic): {USER_SERVICE_URL}")
-    print(f"Walk Service (composite): {WALK_SERVICE_URL}")
-    print(f"Review Service (atomic): {REVIEW_SERVICE_URL}")
+    print(f"Composite Service: {COMPOSITE_SERVICE_URL}")
+    print("  └─ Walk & Review endpoints (with FK validation)")
     print("="*60)
     print("")
     print("Features:")
@@ -1586,9 +1595,9 @@ if __name__ == '__main__':
     print("   - Pet management")
     print("   - Walk request creation (owners)")
     print("   - Walk acceptance (walkers)")
-    print("   - Review system")
+    print("   - Review system with FK validation")
     print("   - Walker search")
-    print("   - Walk Composite: FK validation, parallel execution")
+    print("   - Composite Service: FK validation, parallel execution")
     print("="*60 + "\n")
 
     app.run(
