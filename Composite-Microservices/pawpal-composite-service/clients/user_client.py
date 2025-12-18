@@ -54,7 +54,14 @@ class UserServiceClient:
         numeric_id = extract_numeric_id(user_id)
         response = await self.client.get(f"{self.base_url}/api/users/{numeric_id}")
         if response.status_code == 200:
-            return User(**response.json())
+            data = response.json()
+            # User Service wraps response in {"success": true, "data": {...}}
+            if isinstance(data, dict) and "data" in data:
+                user_data = data["data"]
+                if isinstance(user_data, dict):
+                    return User(**user_data)
+            # Fallback: try direct parsing
+            return User(**data)
         elif response.status_code == 404:
             return None
         raise HTTPException(status_code=response.status_code, detail=response.text)
