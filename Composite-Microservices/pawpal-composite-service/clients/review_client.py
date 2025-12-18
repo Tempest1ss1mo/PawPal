@@ -31,7 +31,7 @@ class ReviewServiceClient:
         """Create a new review."""
         response = await self.client.post(
             f"{self.base_url}/reviews",
-            json=review.model_dump()
+            json=review.model_dump(mode='json')
         )
         if response.status_code == 201:
             return Review(**response.json())
@@ -81,7 +81,7 @@ class ReviewServiceClient:
         """Update a review."""
         response = await self.client.patch(
             f"{self.base_url}/reviews/{review_id}",
-            json=update.model_dump(exclude_unset=True)
+            json=update.model_dump(mode='json', exclude_unset=True)
         )
         if response.status_code == 200:
             return Review(**response.json())
