@@ -32,7 +32,7 @@ class WalkServiceClient:
         """Create a new walk."""
         response = await self.client.post(
             f"{self.base_url}/walks",
-            json=walk.model_dump()
+            json=walk.model_dump(mode='json')
         )
         if response.status_code == 201:
             return WalkRead(**response.json())
@@ -74,7 +74,7 @@ class WalkServiceClient:
         """Update a walk."""
         response = await self.client.patch(
             f"{self.base_url}/walks/{walk_id}",
-            json=update.model_dump(exclude_unset=True)
+            json=update.model_dump(mode='json', exclude_unset=True)
         )
         if response.status_code == 200:
             return WalkRead(**response.json())
