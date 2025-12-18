@@ -101,3 +101,17 @@ class UserRead(UserBase):
     }
 
 
+# Alias for backward compatibility
+User = UserRead
+
+
+class Dog(BaseModel):
+    """Dog model for user's pets."""
+    id: Optional[UUID] = Field(default=None, description="Dog ID")
+    owner_id: Optional[UUID] = Field(default=None, description="Owner ID")
+    name: Optional[str] = Field(default=None, description="Dog name")
+    breed: Optional[str] = Field(default=None, description="Dog breed")
+    age: Optional[int] = Field(default=None, description="Dog age")
+    size: Optional[str] = Field(default=None, description="Dog size")
+
+    model_config = {"extra": "allow"}

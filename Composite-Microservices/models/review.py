@@ -99,3 +99,5 @@ class ReviewRead(ReviewBase):
     }
 
 
+# Alias for backward compatibility
+Review = ReviewRead
