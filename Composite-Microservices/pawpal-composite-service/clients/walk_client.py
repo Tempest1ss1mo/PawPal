@@ -7,11 +7,8 @@ from uuid import UUID
 import httpx
 from fastapi import HTTPException
 
-# Import models - supports both local dev and Docker deployment
-current_dir = str(Path(__file__).parent.parent)  # pawpal-composite-service/
-parent_dir = str(Path(__file__).parent.parent.parent)  # Composite-Microservices/
-if current_dir not in sys.path:
-    sys.path.insert(0, current_dir)
+# Import models from parent directory (shared, not duplicated)
+parent_dir = str(Path(__file__).parent.parent.parent)
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 

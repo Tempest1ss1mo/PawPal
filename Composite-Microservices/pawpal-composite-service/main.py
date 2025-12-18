@@ -21,7 +21,6 @@ from uuid import UUID
 
 from fastapi import FastAPI, HTTPException, Query, Depends
 from fastapi.responses import JSONResponse
-from concurrent.futures import ThreadPoolExecutor
 
 from clients.walk_client import WalkServiceClient
 from clients.review_client import ReviewServiceClient
@@ -34,11 +33,8 @@ from services.orchestration import OrchestrationService
 import sys
 from pathlib import Path
 
-# Import models - supports both local dev (parent dir) and Docker (current dir)
-current_dir = str(Path(__file__).parent)
+# Import models from parent directory (shared, not duplicated)
 parent_dir = str(Path(__file__).parent.parent)
-if current_dir not in sys.path:
-    sys.path.insert(0, current_dir)
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
@@ -122,45 +118,6 @@ def root():
             "review": review_service_url,
             "user": user_service_url
         }
-    }
-
-
-@app.get("/health")
-async def health(
-    walk_cli: WalkServiceClient = Depends(get_walk_client),
-    review_cli: ReviewServiceClient = Depends(get_review_client),
-    user_cli: UserServiceClient = Depends(get_user_client)
-):
-    """Health check endpoint - verifies connection to atomic services."""
-    status_map = {}
-
-    # Check Walk Service
-    try:
-        response = await walk_cli.client.get(f"{walk_service_url}/")
-        status_map["walk"] = "connected" if response.status_code == 200 else "degraded"
-    except Exception:
-        status_map["walk"] = "disconnected"
-
-    # Check Review Service
-    try:
-        response = await review_cli.client.get(f"{review_service_url}/health")
-        status_map["review"] = "connected" if response.status_code == 200 else "degraded"
-    except Exception:
-        status_map["review"] = "disconnected"
-
-    # Check User Service
-    try:
-        response = await user_cli.client.get(f"{user_service_url}/health")
-        status_map["user"] = "connected" if response.status_code == 200 else "degraded"
-    except Exception:
-        status_map["user"] = "disconnected"
-
-    overall = "healthy" if all(s == "connected" for s in status_map.values()) else "degraded"
-
-    return {
-        "service": "PawPal Composite Service",
-        "status": overall,
-        "atomic_services": status_map
     }
 
 

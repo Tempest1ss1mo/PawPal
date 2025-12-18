@@ -38,7 +38,9 @@ USER_SERVICE_URL = os.environ.get('USER_SERVICE_URL', 'http://34.9.57.25:3001')
 # PawPal Composite Service - integrates Walk, Review, and User services
 # Provides: FK validation, parallel execution, orchestrated endpoints
 COMPOSITE_SERVICE_URL = os.environ.get('COMPOSITE_SERVICE_URL', 'http://localhost:8002')
-# For backwards compatibility, WALK_SERVICE_URL and REVIEW_SERVICE_URL point to composite
+# Walk Atomic Service - needed for /assignments (not in composite)
+WALK_ATOMIC_SERVICE_URL = os.environ.get('WALK_ATOMIC_SERVICE_URL', 'http://localhost:8000')
+# WALK_SERVICE_URL and REVIEW_SERVICE_URL point to composite for /walks and /reviews
 WALK_SERVICE_URL = os.environ.get('WALK_SERVICE_URL', COMPOSITE_SERVICE_URL)
 REVIEW_SERVICE_URL = os.environ.get('REVIEW_SERVICE_URL', COMPOSITE_SERVICE_URL)
 
@@ -47,6 +49,7 @@ GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '445201823926-sqscktas1gm0
 
 logger.info(f"Using User Service (atomic) at: {USER_SERVICE_URL}")
 logger.info(f"Using Composite Service at: {COMPOSITE_SERVICE_URL}")
+logger.info(f"Using Walk Atomic Service at: {WALK_ATOMIC_SERVICE_URL}")
 logger.info(f"Using Walk Service at: {WALK_SERVICE_URL}")
 logger.info(f"Using Review Service at: {REVIEW_SERVICE_URL}")
 
@@ -96,6 +99,21 @@ def health():
             'status': 'unavailable',
             'url': COMPOSITE_SERVICE_URL,
             'type': 'composite',
+            'error': str(e)
+        }
+
+    # Check Walk Atomic Service (for assignments endpoint)
+    try:
+        response = requests.get(f'{WALK_ATOMIC_SERVICE_URL}/', timeout=5)
+        health_status['dependencies']['walk_atomic_service'] = {
+            'status': 'healthy' if response.status_code == 200 else 'unhealthy',
+            'url': WALK_ATOMIC_SERVICE_URL,
+            'note': 'for assignments'
+        }
+    except Exception as e:
+        health_status['dependencies']['walk_atomic_service'] = {
+            'status': 'unavailable',
+            'url': WALK_ATOMIC_SERVICE_URL,
             'error': str(e)
         }
 
@@ -1076,8 +1094,9 @@ def assignments():
                 'notes': data.get('notes', '')
             }
 
+            # Use Walk Atomic Service for assignments (not in composite)
             response = requests.post(
-                f'{WALK_SERVICE_URL}/assignments',
+                f'{WALK_ATOMIC_SERVICE_URL}/assignments',
                 json=assignment_data,
                 headers={'Content-Type': 'application/json'},
                 timeout=10
@@ -1086,9 +1105,9 @@ def assignments():
             if response.status_code == 201:
                 result = response.json()
 
-                # Update walk status to 'accepted'
+                # Update walk status to 'accepted' (via composite or atomic)
                 requests.patch(
-                    f'{WALK_SERVICE_URL}/walks/{walk_id}',
+                    f'{WALK_ATOMIC_SERVICE_URL}/walks/{walk_id}',
                     json={'status': 'accepted'},
                     headers={'Content-Type': 'application/json'},
                     timeout=10
@@ -1129,8 +1148,9 @@ def assignments():
 
             logger.info(f"Fetching assignments with params: {params}")
 
+            # Use Walk Atomic Service for assignments (not in composite)
             response = requests.get(
-                f'{WALK_SERVICE_URL}/assignments',
+                f'{WALK_ATOMIC_SERVICE_URL}/assignments',
                 params=params,
                 timeout=10
             )
@@ -1178,8 +1198,9 @@ def update_assignment(assignment_id):
         if 'end_time' in data:
             update_data['end_time'] = data['end_time']
 
+        # Use Walk Atomic Service for assignments (not in composite)
         response = requests.patch(
-            f'{WALK_SERVICE_URL}/assignments/{assignment_id}',
+            f'{WALK_ATOMIC_SERVICE_URL}/assignments/{assignment_id}',
             json=update_data,
             headers={'Content-Type': 'application/json'},
             timeout=10
@@ -1193,7 +1214,7 @@ def update_assignment(assignment_id):
                 walk_id = result.get('walk_id')
                 if walk_id:
                     requests.patch(
-                        f'{WALK_SERVICE_URL}/walks/{walk_id}',
+                        f'{WALK_ATOMIC_SERVICE_URL}/walks/{walk_id}',
                         json={'status': 'completed'},
                         headers={'Content-Type': 'application/json'},
                         timeout=10
@@ -1554,6 +1575,12 @@ def service_info():
             'swagger_ui': f'{USER_SERVICE_URL}/api-docs',
             'type': 'atomic'
         },
+        'walk_atomic_service': {
+            'url': WALK_ATOMIC_SERVICE_URL,
+            'swagger_ui': f'{WALK_ATOMIC_SERVICE_URL}/docs',
+            'type': 'atomic',
+            'note': 'for assignments endpoint'
+        },
         'walk_service': {
             'url': WALK_SERVICE_URL,
             'swagger_ui': f'{WALK_SERVICE_URL}/docs',
@@ -1587,6 +1614,8 @@ if __name__ == '__main__':
     print(f"User Service (atomic): {USER_SERVICE_URL}")
     print(f"Composite Service: {COMPOSITE_SERVICE_URL}")
     print("  └─ Walk & Review endpoints (with FK validation)")
+    print(f"Walk Atomic Service: {WALK_ATOMIC_SERVICE_URL}")
+    print("  └─ Assignments endpoint")
     print("="*60)
     print("")
     print("Features:")
