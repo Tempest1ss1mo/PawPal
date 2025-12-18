@@ -35,14 +35,21 @@ logger = logging.getLogger(__name__)
 
 # Microservice URLs
 USER_SERVICE_URL = os.environ.get('USER_SERVICE_URL', 'http://34.9.57.25:3001')
-COMPOSITE_SERVICE_URL = os.environ.get('COMPOSITE_SERVICE_URL', 'http://localhost:3002')
-WALK_SERVICE_URL = os.environ.get('WALK_SERVICE_URL', 'http://localhost:8000')
-REVIEW_SERVICE_URL = os.environ.get('REVIEW_SERVICE_URL', 'http://localhost:8001')
+# PawPal Composite Service - integrates Walk, Review, and User services
+# Provides: FK validation, parallel execution, orchestrated endpoints
+COMPOSITE_SERVICE_URL = os.environ.get('COMPOSITE_SERVICE_URL', 'http://localhost:8002')
+# Walk Atomic Service - needed for /assignments (not in composite)
+WALK_ATOMIC_SERVICE_URL = os.environ.get('WALK_ATOMIC_SERVICE_URL', 'http://localhost:8000')
+# WALK_SERVICE_URL and REVIEW_SERVICE_URL point to composite for /walks and /reviews
+WALK_SERVICE_URL = os.environ.get('WALK_SERVICE_URL', COMPOSITE_SERVICE_URL)
+REVIEW_SERVICE_URL = os.environ.get('REVIEW_SERVICE_URL', COMPOSITE_SERVICE_URL)
 
 # Google OAuth2 Config
 GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '445201823926-sqscktas1gm0k5ve91mchu5cj96bofcm.apps.googleusercontent.com')
 
-logger.info(f"Using User Service at: {USER_SERVICE_URL}")
+logger.info(f"Using User Service (atomic) at: {USER_SERVICE_URL}")
+logger.info(f"Using Composite Service at: {COMPOSITE_SERVICE_URL}")
+logger.info(f"Using Walk Atomic Service at: {WALK_ATOMIC_SERVICE_URL}")
 logger.info(f"Using Walk Service at: {WALK_SERVICE_URL}")
 logger.info(f"Using Review Service at: {REVIEW_SERVICE_URL}")
 
@@ -77,31 +84,34 @@ def health():
             'error': str(e)
         }
 
-    # Check Walk Service
+    # Check PawPal Composite Service (handles Walk and Review)
     try:
-        response = requests.get(f'{WALK_SERVICE_URL}/', timeout=5)
-        health_status['dependencies']['walk_service'] = {
+        response = requests.get(f'{COMPOSITE_SERVICE_URL}/', timeout=5)
+        health_status['dependencies']['composite_service'] = {
             'status': 'healthy' if response.status_code == 200 else 'unhealthy',
-            'url': WALK_SERVICE_URL
+            'url': COMPOSITE_SERVICE_URL,
+            'type': 'composite'
         }
     except Exception as e:
-        health_status['dependencies']['walk_service'] = {
+        health_status['dependencies']['composite_service'] = {
             'status': 'unavailable',
-            'url': WALK_SERVICE_URL,
+            'url': COMPOSITE_SERVICE_URL,
+            'type': 'composite',
             'error': str(e)
         }
 
-    # Check Review Service
+    # Check Walk Atomic Service (for assignments endpoint)
     try:
-        response = requests.get(f'{REVIEW_SERVICE_URL}/health', timeout=5)
-        health_status['dependencies']['review_service'] = {
+        response = requests.get(f'{WALK_ATOMIC_SERVICE_URL}/', timeout=5)
+        health_status['dependencies']['walk_atomic_service'] = {
             'status': 'healthy' if response.status_code == 200 else 'unhealthy',
-            'url': REVIEW_SERVICE_URL
+            'url': WALK_ATOMIC_SERVICE_URL,
+            'note': 'for assignments'
         }
     except Exception as e:
-        health_status['dependencies']['review_service'] = {
+        health_status['dependencies']['walk_atomic_service'] = {
             'status': 'unavailable',
-            'url': REVIEW_SERVICE_URL,
+            'url': WALK_ATOMIC_SERVICE_URL,
             'error': str(e)
         }
 
@@ -1071,7 +1081,7 @@ def assignments():
             }
 
             response = requests.post(
-                f'{WALK_SERVICE_URL}/assignments',
+                f'{WALK_ATOMIC_SERVICE_URL}/assignments',
                 json=assignment_data,
                 headers={'Content-Type': 'application/json'},
                 timeout=10
@@ -1124,7 +1134,7 @@ def assignments():
             logger.info(f"Fetching assignments with params: {params}")
 
             response = requests.get(
-                f'{WALK_SERVICE_URL}/assignments',
+                f'{WALK_ATOMIC_SERVICE_URL}/assignments',
                 params=params,
                 timeout=10
             )
@@ -1173,7 +1183,7 @@ def update_assignment(assignment_id):
             update_data['end_time'] = data['end_time']
 
         response = requests.patch(
-            f'{WALK_SERVICE_URL}/assignments/{assignment_id}',
+            f'{WALK_ATOMIC_SERVICE_URL}/assignments/{assignment_id}',
             json=update_data,
             headers={'Content-Type': 'application/json'},
             timeout=10
