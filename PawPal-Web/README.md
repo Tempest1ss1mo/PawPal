@@ -1,340 +1,483 @@
-# PawPal Web Application - Sprint 2
+# PawPal Web Application
 
-This is the web application component for Sprint 2, which integrates with the Composite Microservice to demonstrate all required features.
+A cloud-native pet care platform that connects dog owners with professional dog walkers. Built with a microservices architecture and deployed on Google Cloud Platform.
 
-## 📁 Project Structure
+## Table of Contents
 
-Your complete project should be organized as follows:
+- [Overview](#overview)
+- [System Architecture](#system-architecture)
+- [Project Structure](#project-structure)
+- [Deployment Architecture](#deployment-architecture)
+- [Key Features](#key-features)
+- [API Endpoints](#api-endpoints)
+- [Local Development](#local-development)
+- [Cloud Deployment](#cloud-deployment)
+- [Technical Highlights](#technical-highlights)
+- [Troubleshooting](#troubleshooting)
+
+---
+
+## Overview
+
+PawPal is a full-stack web application that enables:
+- **Pet Owners**: Register, add pets, create walk requests, and leave reviews
+- **Dog Walkers**: Browse available walks, accept jobs, and manage assignments
+
+### Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| Frontend | HTML5, CSS3, JavaScript, Google OAuth2 |
+| Backend (BFF) | Python Flask, Flask-CORS |
+| Composite Service | Python FastAPI, Pydantic v2 |
+| Atomic Services | FastAPI (Walk, Review), Node.js Express (User) |
+| Cloud Platform | Google Cloud Run, Cloud Storage, Cloud SQL |
+
+---
+
+## System Architecture
 
 ```
-Sprint2-Project/                    # Main project folder
-│
-├── Cloud-Computing-Database/       # Team repository (don't modify)
-│   ├── database/                   # Database schema and setup
-│   ├── user-service/               # Atomic service (port 3001)
-│   ├── composite-service/          # Composite service (port 3002)
-│   └── [other files...]
-│
-└── pawpal-webapp/                  # Your web application (this folder)
-    ├── app.py                      # Flask backend
-    ├── requirements.txt            # Python dependencies
-    ├── run.sh                      # Setup and run script
-    ├── .env.example                # Environment template
-    ├── .env                        # Your configuration (create from .env.example)
-    ├── README.md                   # This file
-    ├── static/
-    │   ├── css/
-    │   │   └── style.css
-    │   └── js/
-    │       ├── main.js             # Main application logic
-    │       └── demo.js             # Sprint 2 demo features
-    └── templates/
-        └── index.html              # Main HTML template
-
+┌─────────────────────────────────────────────────────────────────────┐
+│                         FRONTEND LAYER                               │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │     Static Frontend (Google Cloud Storage)                   │    │
+│  │     - Single Page Application (HTML/CSS/JS)                  │    │
+│  │     - Google OAuth2 Integration                              │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼ REST API (CORS enabled)
+┌─────────────────────────────────────────────────────────────────────┐
+│                      BACKEND FOR FRONTEND (BFF)                      │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │     Web Backend - Flask (Cloud Run)                          │    │
+│  │     - Session Management (SameSite=None, Secure=True)        │    │
+│  │     - Request Routing & Aggregation                          │    │
+│  │     - UUID Format Conversion                                 │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────────┘
+                                    │
+                    ┌───────────────┴───────────────┐
+                    ▼                               ▼
+┌──────────────────────────────────┐   ┌──────────────────────────────┐
+│     COMPOSITE SERVICE            │   │       USER SERVICE           │
+│     FastAPI (Cloud Run)          │   │       Express.js             │
+│  ┌────────────────────────────┐  │   │  ┌────────────────────────┐  │
+│  │ - FK Constraint Validation │  │   │  │ - Google OAuth2        │  │
+│  │ - Parallel Execution       │  │   │  │ - User CRUD            │  │
+│  │ - Service Orchestration    │  │   │  │ - Dog Management       │  │
+│  │ - ThreadPoolExecutor       │  │   │  │ - MySQL Database       │  │
+│  └────────────────────────────┘  │   │  └────────────────────────┘  │
+└──────────────────────────────────┘   └──────────────────────────────┘
+            │
+    ┌───────┴───────┐
+    ▼               ▼
+┌────────────┐  ┌────────────┐
+│   WALK     │  │  REVIEW    │
+│  SERVICE   │  │  SERVICE   │
+│  FastAPI   │  │  FastAPI   │
+│ (Cloud Run)│  │ (Cloud Run)│
+│            │  │            │
+│ In-memory  │  │  MySQL DB  │
+│  Storage   │  │            │
+└────────────┘  └────────────┘
 ```
 
-## 🚀 Quick Start
+### Data Flow
 
-### Automatic Setup and Run
+1. User accesses frontend on Cloud Storage
+2. Frontend makes API calls to Web Backend (Cloud Run)
+3. Web Backend routes requests to appropriate services:
+   - `/walks`, `/reviews` → Composite Service
+   - `/assignments` → Walk Atomic Service directly
+   - `/users`, `/dogs`, `/auth` → User Service directly
+4. Composite Service validates FK constraints and orchestrates atomic services
+5. Response flows back through the chain
 
-The easiest way to get started is using the provided script:
+---
 
+## Project Structure
+
+```
+PawPal/
+├── PawPal-Web/                      # Web Application Layer
+│   ├── app.py                       # Flask BFF backend (main file)
+│   ├── requirements.txt             # Python dependencies
+│   ├── Procfile                     # Cloud Run entrypoint
+│   ├── templates/
+│   │   └── index.html               # Server-side template
+│   ├── static/
+│   │   ├── css/style.css            # Styles
+│   │   └── js/
+│   │       ├── main.js              # Main application logic
+│   │       └── demo.js              # Demo features
+│   └── static-deploy/               # Production frontend (Cloud Storage)
+│       ├── index.html               # SPA entry point
+│       ├── config.js                # API URL configuration
+│       ├── css/style.css
+│       └── js/main.js
+│
+├── Composite-Microservices/         # Composite Service Layer
+│   ├── pawpal-composite-service/
+│   │   ├── main.py                  # FastAPI application
+│   │   ├── constraints.py           # FK validation logic
+│   │   ├── clients/                 # HTTP clients
+│   │   │   ├── walk_client.py       # Walk Service client
+│   │   │   ├── review_client.py     # Review Service client
+│   │   │   └── user_client.py       # User Service client
+│   │   └── services/
+│   │       └── orchestration.py     # Parallel execution
+│   ├── models/                      # Shared Pydantic models
+│   │   ├── walk.py
+│   │   ├── review.py
+│   │   └── user.py
+│   ├── Procfile                     # Cloud Run entrypoint
+│   └── requirements.txt
+│
+├── PawPal-Walk/                     # Walk Atomic Service
+│   ├── main.py                      # FastAPI endpoints
+│   ├── models/
+│   │   ├── walk.py                  # Walk data models
+│   │   ├── assignment.py            # Walker assignments
+│   │   └── event.py                 # Event logging
+│   └── utils/
+│       ├── db.py                    # Database connection
+│       └── pubsub.py                # Google Pub/Sub (optional)
+│
+├── PawPal-Review/                   # Review Atomic Service
+│   ├── main.py                      # FastAPI endpoints
+│   ├── database.py                  # MySQL connection pool
+│   └── utils.py                     # Helper functions (ETag)
+│
+└── PawPal-User/                     # User Atomic Service
+    └── user-service/
+        ├── src/
+        │   ├── app.js               # Express application
+        │   ├── routes/              # API routes
+        │   ├── controllers/         # Business logic
+        │   ├── models/              # Sequelize models
+        │   └── config/              # Database, OAuth
+        └── package.json
+```
+
+---
+
+## Deployment Architecture
+
+### Deployed Services
+
+| Service | Platform | Port | URL Pattern |
+|---------|----------|------|-------------|
+| Frontend | Cloud Storage | - | `https://storage.googleapis.com/{bucket}/index.html` |
+| Web Backend | Cloud Run | 5001 | `https://pawpal-web-backend-xxx.run.app` |
+| Composite Service | Cloud Run | 8080 | `https://pawpal-composite-service-xxx.run.app` |
+| Walk Service | Cloud Run | 8080 | `https://pawpal-walk-atomic-xxx.run.app` |
+| Review Service | Cloud Run | 8080 | `https://pawpal-review-service-xxx.run.app` |
+| User Service | Compute Engine | 3001 | `http://xx.xx.xx.xx:3001` |
+
+### Environment Variables
+
+**Web Backend:**
 ```bash
-cd pawpal-webapp
-chmod +x run.sh
-
-# Option 1: Setup all dependencies
-./run.sh
-# Select option 1
-
-# Option 2: Run all services
-./run.sh
-# Select option 2
-
-# Option 3: Run only web app (if other services are already running)
-./run.sh
-# Select option 3
+COMPOSITE_SERVICE_URL=https://pawpal-composite-service-xxx.run.app
+WALK_ATOMIC_SERVICE_URL=https://pawpal-walk-atomic-xxx.run.app
+USER_SERVICE_URL=http://xx.xx.xx.xx:3001
 ```
 
-### Manual Setup
+**Composite Service:**
+```bash
+WALK_SERVICE_URL=https://pawpal-walk-atomic-xxx.run.app
+REVIEW_SERVICE_URL=https://pawpal-review-service-xxx.run.app
+USER_SERVICE_URL=http://xx.xx.xx.xx:3001
+```
 
-If you prefer manual setup, follow these steps:
+---
 
-#### 1. Prerequisites
+## Key Features
 
-- Python 3.7+
-- Node.js 14+
+### 1. Composite Service Pattern
+
+The Composite Service provides:
+
+**Foreign Key Validation:**
+```python
+async def validate_review_foreign_keys(walk_client, user_client, walk_id, owner_id, walker_id):
+    # Validates walk exists in Walk Service
+    await validate_walk_exists(walk_client, walk_uuid)
+    # Validates owner exists in User Service
+    await validate_user_exists(user_client, owner_id)
+    # Validates walker exists in User Service
+    await validate_user_exists(user_client, walker_id)
+```
+
+**Parallel Execution:**
+```python
+with ThreadPoolExecutor(max_workers=3) as executor:
+    user_future = executor.submit(fetch_user)
+    dogs_future = executor.submit(fetch_dogs)
+    reviews_future = executor.submit(fetch_reviews)
+
+    user = user_future.result()
+    dogs = dogs_future.result()
+    reviews = reviews_future.result()
+```
+
+### 2. Google OAuth2 Integration
+
+- Users can sign in with Google accounts
+- Session cookies configured for cross-origin support
+- Automatic user creation on first OAuth login
+
+### 3. CORS Configuration
+
+```python
+CORS(app,
+     supports_credentials=True,
+     origins=['*'],
+     allow_headers=['Content-Type', 'Authorization', 'X-Requested-With'],
+     methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])
+```
+
+### 4. UUID/Numeric ID Conversion
+
+The User Service uses numeric IDs while other services use UUIDs. The Composite Service handles conversion:
+
+```python
+def extract_numeric_id(user_id: str) -> str:
+    # Converts: 00000000-0000-0000-0000-000000000009 → "9"
+    uuid_pattern = r'^0{8}-0{4}-0{4}-0{4}-0*(\d+)$'
+    match = re.match(uuid_pattern, user_id)
+    if match:
+        return match.group(1)
+    return user_id
+```
+
+---
+
+## API Endpoints
+
+### Web Backend (`/api/*`)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/health` | GET | Service health check |
+| `/api/login` | POST | User login |
+| `/api/signup` | POST | User registration |
+| `/api/logout` | POST | User logout |
+| `/api/pets` | GET/POST | Pet management |
+| `/api/pets/<id>` | GET/PUT/DELETE | Single pet operations |
+| `/api/walks` | GET/POST | Walk management |
+| `/api/walks/<id>` | GET/PATCH/DELETE | Single walk operations |
+| `/api/assignments` | GET/POST | Walker assignments |
+| `/api/reviews` | GET/POST | Review management |
+
+### Composite Service
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/walks` | GET/POST | Walk CRUD (delegated) |
+| `/walks/{id}` | GET/PATCH/DELETE | Single walk |
+| `/reviews` | GET/POST | Review CRUD with FK validation |
+| `/reviews/{id}` | GET/PATCH/DELETE | Single review |
+| `/users/{id}/complete` | GET | User with dogs & reviews (parallel) |
+| `/walks/{id}/complete` | GET | Walk with reviews (parallel) |
+
+---
+
+## Local Development
+
+### Prerequisites
+
+- Python 3.9+
+- Node.js 16+
 - MySQL 8.0
-- The Cloud-Computing-Database repository
 
-#### 2. Setup Database
-
-```bash
-cd ../Cloud-Computing-Database
-
-# Start MySQL
-sudo /usr/local/mysql/support-files/mysql.server start
-
-# Create database and load schema
-mysql -u root -p < database/schema.sql
-mysql -u root -p pawpal_db < database/sample_data.sql
-```
-
-#### 3. Configure User Service
+### Setup
 
 ```bash
-cd ../Cloud-Computing-Database/user-service
-
-# Create .env file
-cat > .env << EOF
-DB_HOST=localhost
-DB_PORT=3306
-DB_NAME=pawpal_db
-DB_USERNAME=root
-DB_PASSWORD=your_mysql_password
-EOF
-
-# Install dependencies and start
-npm install
-npm start
-# Should run on port 3001
-```
-
-#### 4. Configure Composite Service
-
-```bash
-cd ../Cloud-Computing-Database/composite-service
-
-# Copy environment template
-cp .env.example .env
-
-# Install dependencies and start
-npm install
-npm start
-# Should run on port 3002
-```
-
-#### 5. Configure and Run Web Application
-
-```bash
-cd pawpal-webapp
-
-# Copy environment template
-cp .env.example .env
+# Clone and enter directory
+cd PawPal/PawPal-Web
 
 # Create virtual environment
 python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+source venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
 
+# Set environment variables
+export USER_SERVICE_URL=http://localhost:3001
+export COMPOSITE_SERVICE_URL=http://localhost:8002
+export WALK_ATOMIC_SERVICE_URL=http://localhost:8000
+
 # Run the application
 python app.py
-# Should run on port 5000
 ```
 
-## 🌐 Accessing the Application
-
-Once all services are running:
-
-1. **Main Application**: http://localhost:5000
-2. **Sprint 2 Demo**: Click "Sprint 2 Demo" in the navigation (red link)
-
-## ✅ Sprint 2 Features
-
-The application demonstrates all required Sprint 2 features:
-
-### 1. **Composite Microservice Integration**
-- All pet operations go through the composite service
-- User and dog data is aggregated via composite service
-
-### 2. **Foreign Key Validation**
-- Creating dogs validates that the owner exists
-- Demo page shows validation with invalid owner IDs
-
-### 3. **Parallel Execution with Threads**
-- User profile data fetched using worker threads
-- Demo shows timing and parallel data fetching
-
-### 4. **Cascade Delete Operations**
-- Deleting a user removes all their dogs
-- Demo shows cascade delete in action
-
-### 5. **Aggregated Statistics**
-- Combined statistics from multiple services
-- Demo displays aggregated data
-
-## 🧪 Testing Sprint 2 Features
-
-### Testing Checklist
-
-1. **Service Health Check**
-   - Visit the demo page
-   - Check "Service Status" - all should show green
-
-2. **Foreign Key Validation**
-   - Go to "Foreign Key Validation" tab
-   - Try owner ID 999 (invalid)
-   - Should see validation error
-
-3. **Parallel Execution**
-   - Go to "Parallel Execution" tab
-   - Enter user ID 1
-   - Should see data fetched with timing info
-
-4. **Cascade Delete**
-   - Go to "Cascade Delete" tab
-   - Enter user ID 4
-   - Confirm deletion
-   - Should see user and dogs deleted
-
-5. **Aggregated Stats**
-   - Go to "Aggregated Stats" tab
-   - Click "Load Statistics"
-   - Should see combined statistics
-
-## 🔧 Configuration
-
-### Environment Variables (.env)
+### Running All Services Locally
 
 ```bash
-# Flask Configuration
-FLASK_ENV=development
-FLASK_DEBUG=True
-SECRET_KEY=your-secret-key-here
-PORT=5000
+# Terminal 1: User Service
+cd PawPal-User/user-service && npm start
 
-# Microservice URLs
-USER_SERVICE_URL=http://localhost:3001
-COMPOSITE_SERVICE_URL=http://localhost:3002
+# Terminal 2: Walk Service
+cd PawPal-Walk && uvicorn main:app --port 8000
 
-# Optional Services (for future)
-WALKING_SERVICE_URL=http://localhost:5002
-REVIEW_SERVICE_URL=http://localhost:5003
+# Terminal 3: Review Service
+cd PawPal-Review && uvicorn main:app --port 8001
+
+# Terminal 4: Composite Service
+cd Composite-Microservices/pawpal-composite-service && uvicorn main:app --port 8002
+
+# Terminal 5: Web Backend
+cd PawPal-Web && python app.py
 ```
-
-## 📊 API Endpoints
-
-### Web Application Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/` | GET | Main application page |
-| `/api/health` | GET | Health check with service status |
-| `/api/login` | POST | User login |
-| `/api/signup` | POST | User registration |
-| `/api/pets` | GET/POST | Pet management (via composite) |
-| `/api/walkers` | GET | Get available walkers |
-| `/api/bookings` | GET/POST | Booking management |
-| `/api/demo/composite-stats` | GET | Aggregated statistics demo |
-| `/api/demo/user-complete/<id>` | GET | Parallel execution demo |
-| `/api/demo/cascade-delete/<id>` | DELETE | Cascade delete demo |
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-#### Port Already in Use
-```bash
-# Check what's using the port
-lsof -i :5000  # Web app
-lsof -i :3001  # User service
-lsof -i :3002  # Composite service
-
-# Kill the process
-kill -9 <PID>
-```
-
-#### MySQL Connection Issues
-```bash
-# Check MySQL is running
-mysqladmin -u root -p ping
-
-# Check database exists
-mysql -u root -p -e "SHOW DATABASES LIKE 'pawpal_db';"
-```
-
-#### Service Not Available
-- Ensure all services are running in order:
-  1. MySQL
-  2. User Service (3001)
-  3. Composite Service (3002)
-  4. Web App (5000)
-
-#### Python Import Errors
-```bash
-# Make sure virtual environment is activated
-source venv/bin/activate  # Linux/Mac
-venv\Scripts\activate     # Windows
-
-# Reinstall dependencies
-pip install -r requirements.txt
-```
-
-## 🚀 Deployment to Google Cloud Storage
-
-For the Sprint 2 requirement to deploy on Cloud Storage:
-
-### 1. Build Static Files
-
-Since Cloud Storage serves static files, you'll need to:
-- Deploy the Flask app on Cloud Run or App Engine as a backend API
-- Configure CORS for cross-origin requests
-- Update the JavaScript to point to the deployed backend
-
-### 2. Upload to Cloud Storage
-
-```bash
-# Create a bucket
-gsutil mb gs://your-pawpal-webapp
-
-# Upload static files
-gsutil -m cp -r static/* gs://your-pawpal-webapp/static/
-gsutil cp templates/index.html gs://your-pawpal-webapp/
-
-# Set public access
-gsutil iam ch allUsers:objectViewer gs://your-pawpal-webapp
-
-# Configure as website
-gsutil web set -m index.html -e 404.html gs://your-pawpal-webapp
-```
-
-### 3. Update URLs in JavaScript
-
-Edit `static/js/main.js` and `static/js/demo.js`:
-```javascript
-// Replace with your deployed backend URL
-const API_BASE_URL = 'https://your-backend-url.com/api';
-```
-
-## 📝 Notes
-
-- This web application is designed specifically for Sprint 2 requirements
-- The composite service must be running for full functionality
-- Demo features are highlighted in red in the navigation
-- All microservice communication goes through the composite service
-- The application can be deployed as static files to Cloud Storage
-
-## 🤝 Support
-
-If you encounter any issues:
-1. Check all services are running (`./run.sh` option 2)
-2. Verify the database is set up correctly
-3. Check the browser console for JavaScript errors
-4. Review service logs in the parent directory
-
-## 📋 Submission Checklist
-
-- [ ] All services run locally
-- [ ] Foreign key validation works
-- [ ] Parallel execution demonstrated
-- [ ] Cascade delete functional
-- [ ] Statistics aggregation working
-- [ ] Deployed to Cloud Storage
-- [ ] All demo features accessible
 
 ---
 
-**Sprint 2 - Composite Microservice Integration**
-*PawPal Web Application*
+## Cloud Deployment
+
+### Deploy Walk Atomic Service
+
+```bash
+cd PawPal-Walk
+gcloud run deploy pawpal-walk-atomic \
+  --source . \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --port 8080
+```
+
+### Deploy Composite Service
+
+```bash
+cd Composite-Microservices
+gcloud run deploy pawpal-composite-service \
+  --source . \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --port 8080 \
+  --set-env-vars="WALK_SERVICE_URL=https://pawpal-walk-atomic-xxx.run.app,REVIEW_SERVICE_URL=https://pawpal-review-service-xxx.run.app,USER_SERVICE_URL=http://xx.xx.xx.xx:3001"
+```
+
+### Deploy Web Backend
+
+```bash
+cd PawPal-Web
+gcloud run deploy pawpal-web-backend \
+  --source . \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --port 5001 \
+  --set-env-vars="COMPOSITE_SERVICE_URL=https://pawpal-composite-service-xxx.run.app,WALK_ATOMIC_SERVICE_URL=https://pawpal-walk-atomic-xxx.run.app,USER_SERVICE_URL=http://xx.xx.xx.xx:3001"
+```
+
+### Deploy Frontend to Cloud Storage
+
+```bash
+# Create bucket
+gsutil mb -l us-central1 gs://pawpal-frontend-xxx
+
+# Set public access
+gsutil iam ch allUsers:objectViewer gs://pawpal-frontend-xxx
+
+# Update config.js with backend URL
+# Then upload files
+cd PawPal-Web/static-deploy
+gsutil -m cp -r * gs://pawpal-frontend-xxx/
+
+# Configure as website
+gsutil web set -m index.html -e index.html gs://pawpal-frontend-xxx
+```
+
+---
+
+## Technical Highlights
+
+| Feature | Implementation |
+|---------|---------------|
+| API Framework | FastAPI with automatic OpenAPI docs (`/docs`) |
+| Data Validation | Pydantic v2 with `model_dump(mode='json')` |
+| Authentication | Google OAuth2 + Session-based |
+| CORS | Flask-CORS with credentials support |
+| Error Handling | Graceful degradation (Pub/Sub optional) |
+| Serialization | Proper UUID/datetime JSON serialization |
+| Deployment | Source-based with Cloud Run |
+
+### Key Code Patterns
+
+**Pydantic Serialization:**
+```python
+# Correct way to serialize for JSON requests
+json=walk.model_dump(mode='json')
+```
+
+**Optional Pub/Sub:**
+```python
+try:
+    from google.cloud import pubsub_v1
+    publisher = pubsub_v1.PublisherClient()
+except Exception as e:
+    print(f"Warning: Pub/Sub not available: {e}")
+    publisher = None
+```
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+**"Expecting value: line 1 column 1 (char 0)"**
+- JSON parsing error - response is empty or not JSON
+- Check if the target service is running and accessible
+
+**"id must be a number"**
+- User Service expects numeric IDs, not UUIDs
+- Ensure UUID-to-numeric conversion is working
+
+**CORS Errors**
+- Check `origins` in CORS configuration
+- Verify `SameSite=None` and `Secure=True` for cookies
+
+**Walk/Review not found (FK validation)**
+- Walk Service uses in-memory storage - data lost on restart
+- Create a new walk before creating a review
+
+### Checking Service Health
+
+```bash
+# Test each service
+curl https://pawpal-walk-atomic-xxx.run.app/
+curl https://pawpal-composite-service-xxx.run.app/
+curl https://pawpal-review-service-xxx.run.app/
+curl http://xx.xx.xx.xx:3001/api/health
+```
+
+### Viewing Cloud Run Logs
+
+```bash
+gcloud run services logs read pawpal-composite-service --region us-central1 --limit 20
+```
+
+---
+
+## Demo Flow
+
+1. **Sign Up/Login** → User authenticates via Google OAuth2
+2. **Add Pet** → Owner adds their dog's information
+3. **Create Walk Request** → Owner specifies location, time, duration
+4. **Walker Accepts** → Walker sees and accepts the walk
+5. **Complete Walk** → Status updated to 'completed'
+6. **Leave Review** → Owner reviews the walker (FK validation ensures walk exists)
+
+---
+
+## License
+
+This project is part of the Cloud Computing course at Columbia University.
+
+---
+
+**PawPal - Connecting Pet Owners with Trusted Dog Walkers**
