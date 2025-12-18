@@ -1,6 +1,7 @@
 """HTTP Client for User Service."""
 import os
 import sys
+import re
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 import httpx
@@ -16,6 +17,26 @@ from models.user import User, Dog
 USER_SERVICE_URL = os.getenv("USER_SERVICE_URL", "http://localhost:3001")
 
 
+def extract_numeric_id(user_id: str) -> str:
+    """
+    Extract numeric ID from UUID format.
+    UUID format: 00000000-0000-0000-0000-000000000009 -> returns "9"
+    If already numeric or different format, returns as-is.
+    """
+    # Check if it's the padded UUID format: 00000000-0000-0000-0000-XXXXXXXXXXXX
+    uuid_pattern = r'^0{8}-0{4}-0{4}-0{4}-0*(\d+)$'
+    match = re.match(uuid_pattern, user_id)
+    if match:
+        return match.group(1)  # Return the numeric part without leading zeros
+
+    # If it's already numeric, return as-is
+    if user_id.isdigit():
+        return user_id
+
+    # Otherwise return the original (might be a real UUID or other format)
+    return user_id
+
+
 class UserServiceClient:
     """Client for making HTTP requests to the User Service."""
     
@@ -29,7 +50,9 @@ class UserServiceClient:
     
     async def get_user(self, user_id: str) -> Optional[User]:
         """Get a user by ID."""
-        response = await self.client.get(f"{self.base_url}/api/users/{user_id}")
+        # Convert UUID format to numeric ID for User Service
+        numeric_id = extract_numeric_id(user_id)
+        response = await self.client.get(f"{self.base_url}/api/users/{numeric_id}")
         if response.status_code == 200:
             return User(**response.json())
         elif response.status_code == 404:
@@ -64,7 +87,9 @@ class UserServiceClient:
     
     async def get_user_dogs(self, user_id: str) -> List[Dog]:
         """Get all dogs for a user."""
-        response = await self.client.get(f"{self.base_url}/api/users/{user_id}/dogs")
+        # Convert UUID format to numeric ID for User Service
+        numeric_id = extract_numeric_id(user_id)
+        response = await self.client.get(f"{self.base_url}/api/users/{numeric_id}/dogs")
         if response.status_code == 200:
             data = response.json()
             if isinstance(data, list):
