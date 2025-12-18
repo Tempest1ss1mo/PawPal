@@ -21,6 +21,7 @@ from uuid import UUID
 
 from fastapi import FastAPI, HTTPException, Query, Depends
 from fastapi.responses import JSONResponse
+from concurrent.futures import ThreadPoolExecutor
 
 from clients.walk_client import WalkServiceClient
 from clients.review_client import ReviewServiceClient
