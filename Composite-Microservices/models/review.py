@@ -8,19 +8,19 @@ from pydantic import BaseModel, Field
 class ReviewBase(BaseModel):
     """Core attributes of a review for a walk."""
 
-    walk_id: UUID = Field(
+    walkId: str = Field(
         ...,
         description="Unique ID of the walk being reviewed.",
         json_schema_extra={"example": "99999999-9999-4999-8999-999999999999"},
     )
-    reviewer_id: UUID = Field(
+    ownerId: str = Field(
         ...,
-        description="Unique ID of the user writing the review (owner or walker).",
+        description="Unique ID of the owner (pet owner who requested the walk).",
         json_schema_extra={"example": "11111111-1111-4111-8111-111111111111"},
     )
-    reviewee_id: UUID = Field(
+    walkerId: str = Field(
         ...,
-        description="Unique ID of the user being reviewed (walker if reviewer is owner, owner if reviewer is walker).",
+        description="Unique ID of the walker (dog walker who performed the walk).",
         json_schema_extra={"example": "22222222-2222-4222-8222-222222222222"},
     )
     rating: int = Field(
@@ -40,9 +40,9 @@ class ReviewBase(BaseModel):
         "json_schema_extra": {
             "examples": [
                 {
-                    "walk_id": "99999999-9999-4999-8999-999999999999",
-                    "reviewer_id": "11111111-1111-4111-8111-111111111111",
-                    "reviewee_id": "22222222-2222-4222-8222-222222222222",
+                    "walkId": "99999999-9999-4999-8999-999999999999",
+                    "ownerId": "11111111-1111-4111-8111-111111111111",
+                    "walkerId": "22222222-2222-4222-8222-222222222222",
                     "rating": 5,
                     "comment": "Great walk! Very professional and punctual.",
                 }
@@ -86,9 +86,9 @@ class ReviewRead(ReviewBase):
             "examples": [
                 {
                     "id": "88888888-8888-4888-8888-888888888888",
-                    "walk_id": "99999999-9999-4999-8999-999999999999",
-                    "reviewer_id": "11111111-1111-4111-8111-111111111111",
-                    "reviewee_id": "22222222-2222-4222-8222-222222222222",
+                    "walkId": "99999999-9999-4999-8999-999999999999",
+                    "ownerId": "11111111-1111-4111-8111-111111111111",
+                    "walkerId": "22222222-2222-4222-8222-222222222222",
                     "rating": 5,
                     "comment": "Great walk! Very professional and punctual.",
                     "created_at": "2025-10-12T16:00:00Z",
