@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Optional
+from typing import Optional, Any, Union
 from uuid import UUID, uuid4
 from datetime import datetime
 from pydantic import BaseModel, Field, EmailStr
@@ -8,13 +8,13 @@ from pydantic import BaseModel, Field, EmailStr
 class UserBase(BaseModel):
     """Core attributes of a user (owner or walker)."""
 
-    name: str = Field(
-        ...,
+    name: Optional[str] = Field(
+        default=None,
         description="Full name of the user.",
         json_schema_extra={"example": "John Doe"},
     )
-    email: EmailStr = Field(
-        ...,
+    email: Optional[str] = Field(
+        default=None,
         description="Email address of the user.",
         json_schema_extra={"example": "john.doe@example.com"},
     )
@@ -23,7 +23,7 @@ class UserBase(BaseModel):
         description="Phone number of the user.",
         json_schema_extra={"example": "+1-555-123-4567"},
     )
-    user_type: str = Field(
+    user_type: Optional[str] = Field(
         default="owner",
         description="Type of user: owner, walker, or both.",
         json_schema_extra={"example": "owner"},
@@ -79,15 +79,20 @@ class UserUpdate(BaseModel):
 
 class UserRead(UserBase):
     """Server representation returned to clients."""
-    id: UUID = Field(default_factory=uuid4)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    # User Service returns integer IDs, not UUIDs
+    id: Optional[Union[int, str]] = Field(default=None)
+    created_at: Optional[datetime] = Field(default=None)
+    updated_at: Optional[datetime] = Field(default=None)
+    # Also support camelCase field names from User Service
+    createdAt: Optional[datetime] = Field(default=None)
+    updatedAt: Optional[datetime] = Field(default=None)
 
     model_config = {
+        "extra": "allow",  # Allow extra fields from User Service
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": "11111111-1111-4111-8111-111111111111",
+                    "id": 9,
                     "name": "John Doe",
                     "email": "john.doe@example.com",
                     "phone": "+1-555-123-4567",
@@ -107,8 +112,11 @@ User = UserRead
 
 class Dog(BaseModel):
     """Dog model for user's pets."""
-    id: Optional[UUID] = Field(default=None, description="Dog ID")
-    owner_id: Optional[UUID] = Field(default=None, description="Owner ID")
+    # User Service returns integer IDs, not UUIDs
+    id: Optional[Union[int, str]] = Field(default=None, description="Dog ID")
+    owner_id: Optional[Union[int, str]] = Field(default=None, description="Owner ID")
+    # Also support camelCase field names
+    ownerId: Optional[Union[int, str]] = Field(default=None, description="Owner ID (camelCase)")
     name: Optional[str] = Field(default=None, description="Dog name")
     breed: Optional[str] = Field(default=None, description="Dog breed")
     age: Optional[int] = Field(default=None, description="Dog age")
